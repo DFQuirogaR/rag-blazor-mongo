@@ -1,0 +1,17 @@
+@using BlazorApp.Models
+
+<div class="chat-message @(Message?.Role == "user" ? "user" : "assistant")">
+    <div class="message-bubble @Message?.Role">
+        <div class="message-content">
+            <p>@Message?.Content</p>
+        </div>
+        <div class="message-footer @Message?.Role">
+            <span class="message-time">@Message?.Timestamp.ToString("HH:mm")</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public ChatMessageModel? Message { get; set; }
+}

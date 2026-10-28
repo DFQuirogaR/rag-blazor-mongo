@@ -1,0 +1,266 @@
+@page "/documents"
+@rendermode InteractiveServer
+@using BlazorApp.Services
+@using BlazorApp.Models
+@inject DocumentScanner Scanner
+@inject DocumentProcessor Processor
+@inject RagService RagService
+@inject ILogger<Documents> Logger
+
+<PageTitle>Gestión de Documentos</PageTitle>
+
+<div class="container mt-4">
+    <h2>Gestión de Documentos RAG</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Estadísticas</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <h3>@documentCount</h3>
+                        <p>Documentos Procesados</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <i class="bi bi-puzzle"></i>
+                        <h3>@chunkCount</h3>
+                        <p>Chunks de Texto</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <i class="bi bi-check-circle"></i>
+                        <h3>@(scanResult?.ProcessedFiles ?? 0)</h3>
+                        <p>Última Ejecución</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5>Escanear Documentos</h5>
+            <button class="btn btn-primary" @onclick="ScanDocuments" disabled="@isScanning">
+                @if (isScanning)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Escaneando...</span>
+                }
+                else
+                {
+                    <i class="bi bi-search me-2"></i>
+                    <span>Escanear Carpeta</span>
+                }
+            </button>
+        </div>
+        <div class="card-body">
+            @if (scanResult != null)
+            {
+                <div class="alert @(scanResult.Errors.Any() ? "alert-warning" : "alert-success")">
+                    <h6>Resultado del Escaneo:</h6>
+                    <ul class="mb-0">
+                        <li>Total de archivos: @scanResult.TotalFiles</li>
+                        <li>Procesados correctamente: @scanResult.ProcessedFiles</li>
+                        <li>Omitidos: @scanResult.SkippedFiles</li>
+                        <li>Fallidos: @scanResult.FailedFiles</li>
+                    </ul>
+                    
+                    @if (scanResult.Errors.Any())
+                    {
+                        <hr/>
+                        <h6>Errores:</h6>
+                        <ul>
+                            @foreach (var error in scanResult.Errors)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+            
+            @if (statusMessage != null)
+            {
+                <div class="alert alert-info">
+                    @statusMessage
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5>Documentos Procesados</h5>
+        </div>
+        <div class="card-body">
+            @if (isLoadingDocuments)
+            {
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            }
+            else if (documents.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Archivo</th>
+                                <th>Tipo</th>
+                                <th>Tamaño</th>
+                                <th>Procesado</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var doc in documents)
+                            {
+                                <tr>
+                                    <td>@doc.FileName</td>
+                                    <td>@doc.FileType</td>
+                                    <td>@FormatFileSize(doc.FileSize)</td>
+                                    <td>@doc.ProcessedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>
+                                        <span class="badge bg-@(doc.ProcessingStatus == "completed" ? "success" : "warning")">
+                                            @doc.ProcessingStatus
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteDocument(doc.Id!)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No hay documentos procesados. Usa el botón "Escanear Carpeta" para comenzar.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<DocumentModel> documents = new();
+    private DocumentScanner.ScanResult? scanResult;
+    private bool isScanning = false;
+    private bool isLoadingDocuments = false;
+    private string? statusMessage;
+    private int documentCount = 0;
+    private int chunkCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocumentsAsync();
+        await LoadStatisticsAsync();
+    }
+
+    private async Task LoadDocumentsAsync()
+    {
+        try
+        {
+            isLoadingDocuments = true;
+            documents = await Processor.GetAllDocumentsAsync();
+            Logger.LogInformation("Loaded {Count} documents", documents.Count);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading documents");
+            statusMessage = $"Error al cargar documentos: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingDocuments = false;
+        }
+    }
+
+    private async Task LoadStatisticsAsync()
+    {
+        try
+        {
+            documentCount = await RagService.GetDocumentCountAsync();
+            chunkCount = await RagService.GetChunkCountAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading statistics");
+        }
+    }
+
+    private async Task ScanDocuments()
+    {
+        try
+        {
+            isScanning = true;
+            statusMessage = "Iniciando escaneo de documentos...";
+            StateHasChanged();
+
+            Logger.LogInformation("Starting document scan");
+            scanResult = await Scanner.ScanAndProcessAsync();
+            
+            statusMessage = null;
+            await LoadDocumentsAsync();
+            await LoadStatisticsAsync();
+            
+            Logger.LogInformation("Document scan completed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error scanning documents");
+            statusMessage = $"Error durante el escaneo: {ex.Message}";
+        }
+        finally
+        {
+            isScanning = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteDocument(string documentId)
+    {
+        if (!string.IsNullOrEmpty(documentId))
+        {
+            try
+            {
+                var result = await Processor.DeleteDocumentAsync(documentId);
+                if (result)
+                {
+                    await LoadDocumentsAsync();
+                    await LoadStatisticsAsync();
+                    Logger.LogInformation("Document deleted: {DocumentId}", documentId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error deleting document: {DocumentId}", documentId);
+                statusMessage = $"Error al eliminar documento: {ex.Message}";
+            }
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}

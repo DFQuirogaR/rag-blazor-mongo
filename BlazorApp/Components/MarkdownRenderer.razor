@@ -1,0 +1,265 @@
+@using Microsoft.AspNetCore.Components
+@using System.Text.RegularExpressions
+
+@if (!string.IsNullOrEmpty(Content))
+{
+    <div class="markdown-renderer">
+        @MarkupContent
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? Content { get; set; }
+
+    [Parameter]
+    public bool SanitizeHtml { get; set; } = true;
+
+    private MarkupString MarkupContent => new MarkupString(ConvertToHtml(Content ?? string.Empty));
+
+    private string ConvertToHtml(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return string.Empty;
+
+        var html = markdown;
+
+        // Convertir encabezados
+        html = Regex.Replace(html, @"^# (.*?)$", "<h1>$1</h1>", RegexOptions.Multiline);
+        html = Regex.Replace(html, @"^## (.*?)$", "<h2>$1</h2>", RegexOptions.Multiline);
+        html = Regex.Replace(html, @"^### (.*?)$", "<h3>$1</h3>", RegexOptions.Multiline);
+        html = Regex.Replace(html, @"^#### (.*?)$", "<h4>$1</h4>", RegexOptions.Multiline);
+
+        // Convertir negrita
+        html = Regex.Replace(html, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
+        html = Regex.Replace(html, @"__(.*?)__", "<strong>$1</strong>");
+
+        // Convertir cursiva
+        html = Regex.Replace(html, @"\*(.*?)\*", "<em>$1</em>");
+        html = Regex.Replace(html, @"_(.*?)_", "<em>$1</em>");
+
+        // Convertir código en línea
+        html = Regex.Replace(html, @"`([^`]+)`", "<code>$1</code>");
+
+        // Convertir bloques de código
+        html = Regex.Replace(html, @"```(\w+)?\s*\n([\s\S]*?)\n```", 
+            match =>
+            {
+                var language = match.Groups[1].Success ? match.Groups[1].Value : "text";
+                var code = System.Net.WebUtility.HtmlEncode(match.Groups[2].Value);
+                return $"<pre class=\"code-block language-{language}\"><code>{code}</code></pre>";
+            });
+
+        // Convertir listas no ordenadas
+        var lines = html.Split('\n');
+        var inList = false;
+        var result = new List<string>();
+
+        foreach (var line in lines)
+        {
+            if (Regex.IsMatch(line, @"^\s*[-*+]\s+"))
+            {
+                if (!inList)
+                {
+                    result.Add("<ul>");
+                    inList = true;
+                }
+                var itemContent = Regex.Replace(line, @"^\s*[-*+]\s+(.*)", "$1");
+                result.Add($"<li>{itemContent}</li>");
+            }
+            else
+            {
+                if (inList)
+                {
+                    result.Add("</ul>");
+                    inList = false;
+                }
+                result.Add(line);
+            }
+        }
+
+        if (inList)
+        {
+            result.Add("</ul>");
+        }
+
+        html = string.Join("\n", result);
+
+        // Convertir listas ordenadas
+        html = Regex.Replace(html, @"^\s*\d+\.\s+(.*)$", "<li>$1</li>", RegexOptions.Multiline);
+        
+        // Agrupar listas ordenadas
+        html = Regex.Replace(html, @"(<li>.*?</li>\s*)+", match =>
+        {
+            var items = match.Value;
+            return $"<ol>{items}</ol>";
+        });
+
+        // Convertir enlaces
+        html = Regex.Replace(html, @"\[([^\]]+)\]\(([^)]+)\)", "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>");
+
+        // Convertir párrafos (líneas que no son elementos HTML)
+        lines = html.Split('\n');
+        result.Clear();
+        var inParagraph = false;
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                if (inParagraph)
+                {
+                    result.Add("</p>");
+                    inParagraph = false;
+                }
+                result.Add("<br>");
+            }
+            else if (!Regex.IsMatch(line, @"^<[^>]+>") && !line.StartsWith("</"))
+            {
+                if (!inParagraph)
+                {
+                    result.Add("<p>");
+                    inParagraph = true;
+                }
+                result.Add(line);
+            }
+            else
+            {
+                if (inParagraph)
+                {
+                    result.Add("</p>");
+                    inParagraph = false;
+                }
+                result.Add(line);
+            }
+        }
+
+        if (inParagraph)
+        {
+            result.Add("</p>");
+        }
+
+        html = string.Join("\n", result);
+
+        // Sanitizar HTML si es necesario
+        if (SanitizeHtml)
+        {
+            html = Sanitize(html);
+        }
+
+        return html;
+    }
+
+    private string Sanitize(string html)
+    {
+        // Lista de etiquetas permitidas
+        var allowedTags = new HashSet<string>
+        {
+            "h1", "h2", "h3", "h4", "h5", "h6",
+            "p", "br", "b", "strong", "i", "em",
+            "u", "strike", "code", "pre", "blockquote",
+            "ul", "ol", "li", "a", "img", "div",
+            "span", "table", "thead", "tbody", "tr",
+            "th", "td"
+        };
+
+        // Lista de atributos permitidos
+        var allowedAttributes = new HashSet<string>
+        {
+            "href", "target", "rel", "src", "alt",
+            "title", "class", "id", "style"
+        };
+
+        // Patrón para encontrar etiquetas HTML
+        var tagPattern = @"</?(\w+)(?:\s+[^>]*)?>";
+        var attributePattern = @"(\w+)=[""']([^""']*)[""']";
+
+        return Regex.Replace(html, tagPattern, match =>
+        {
+            var tagName = match.Groups[1].Value.ToLower();
+            
+            if (!allowedTags.Contains(tagName))
+            {
+                return ""; // Eliminar etiqueta no permitida
+            }
+
+            if (match.Value.StartsWith("</"))
+            {
+                return $"</{tagName}>"; // Etiqueta de cierre
+            }
+
+            // Etiqueta de apertura - sanitizar atributos
+            var tagContent = match.Value;
+            var attributes = new List<string>();
+
+            var attributeMatches = Regex.Matches(tagContent, attributePattern);
+            foreach (Match attrMatch in attributeMatches)
+            {
+                var attrName = attrMatch.Groups[1].Value.ToLower();
+                var attrValue = attrMatch.Groups[2].Value;
+
+                if (allowedAttributes.Contains(attrName))
+                {
+                    // Sanitizar valores de atributos específicos
+                    if (attrName == "href" || attrName == "src")
+                    {
+                        if (!Uri.IsWellFormedUriString(attrValue, UriKind.RelativeOrAbsolute))
+                        {
+                            continue; // Saltar atributo inválido
+                        }
+                        
+                        if (attrValue.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue; // Bloquear javascript: URLs
+                        }
+                    }
+
+                    if (attrName == "style")
+                    {
+                        // Sanitizar estilos CSS básicos
+                        var safeStyles = new List<string>();
+                        var stylePattern = @"([a-zA-Z\-]+)\s*:\s*([^;]+)";
+                        var styleMatches = Regex.Matches(attrValue, stylePattern);
+                        
+                        foreach (Match styleMatch in styleMatches)
+                        {
+                            var styleName = styleMatch.Groups[1].Value.ToLower();
+                            var styleValue = styleMatch.Groups[2].Value;
+                            
+                            // Permitir solo estilos seguros
+                            var safeStyleNames = new HashSet<string>
+                            {
+                                "color", "background-color", "font-size", "font-weight",
+                                "text-align", "margin", "padding", "border", "width",
+                                "height", "display", "position"
+                            };
+                            
+                            if (safeStyleNames.Contains(styleName))
+                            {
+                                safeStyles.Add($"{styleName}: {styleValue}");
+                            }
+                        }
+                        
+                        if (safeStyles.Any())
+                        {
+                            attributes.Add($"{attrName}=\"{string.Join("; ", safeStyles)}\"");
+                        }
+                    }
+                    else
+                    {
+                        attributes.Add($"{attrName}=\"{attrValue}\"");
+                    }
+                }
+            }
+
+            if (attributes.Any())
+            {
+                return $"<{tagName} {string.Join(" ", attributes)}>";
+            }
+            else
+            {
+                return $"<{tagName}>";
+            }
+        });
+    }
+}

@@ -1,0 +1,241 @@
+@page "/chat"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Web
+@using BlazorApp.Services
+@inject RagService RagService
+@inject ILogger<Chat> Logger
+
+<PageTitle>Chat - Asistente RAG</PageTitle>
+
+<div class="chat-container">
+    <!-- Sidebar para sesiones -->
+    <div class="chat-sidebar @(isSidebarCollapsed ? "collapsed" : "")">
+        <div class="sidebar-header">
+            <button class="sidebar-toggle" @onclick="ToggleSidebar">
+                <i class="bi @(isSidebarCollapsed ? "bi-chevron-right" : "bi-chevron-left")"></i>
+            </button>
+            @if (!isSidebarCollapsed)
+            {
+                <h3 class="sidebar-title">Sesiones</h3>
+                <button class="btn-new-session" @onclick="StartNewSession">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            }
+        </div>
+        
+        @if (!isSidebarCollapsed)
+        {
+            <div class="sessions-list">
+                <div class="no-sessions">
+                    <i class="bi bi-chat-left-text"></i>
+                    <p>No hay sesiones</p>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Área principal del chat -->
+    <div class="chat-main">
+        <!-- Header del chat -->
+        <div class="chat-header">
+            <div class="header-left">
+                <h2>Asistente RAG</h2>
+                <div class="session-stats">
+                    <span class="stat-item">
+                        <i class="bi bi-chat-left-text"></i>
+                        @messages.Count mensajes
+                    </span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn-action" @onclick="ClearChat" title="Limpiar chat">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Área de mensajes -->
+        <div class="messages-container">
+            @if (messages.Count == 0)
+            {
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <h3>¡Bienvenido al Asistente RAG!</h3>
+                    <p>Pregúntame sobre los documentos procesados.</p>
+                    <div class="welcome-examples">
+                        <p>Ejemplos:</p>
+                        <ul>
+                            <li>¿Cómo se realiza el mantenimiento de servidores?</li>
+                            <li>¿Cuál es el proceso de backup de datos?</li>
+                            <li>Explícame los pasos para escalar un incidente</li>
+                        </ul>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @foreach (var message in messages)
+                {
+                    <div class="chat-message @(message.Role == "user" ? "user" : "assistant")">
+                        <div class="message-bubble @message.Role">
+                            <div class="message-content">
+                                <p>@message.Content</p>
+                            </div>
+                            <div class="message-footer @message.Role">
+                                <span class="message-time">@message.Timestamp.ToString("HH:mm")</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            
+            @if (isLoading)
+            {
+                <div class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Procesando tu pregunta...</p>
+                </div>
+            }
+        </div>
+
+        <!-- Área de entrada -->
+        <div class="input-container">
+            <div class="input-wrapper">
+                <textarea 
+                    class="message-input" 
+                    placeholder="Escribe tu pregunta aquí... (Presiona Enter para enviar, Shift+Enter para nueva línea)"
+                    @bind="currentMessage"
+                    @bind:event="oninput"
+                    @onkeydown="HandleKeyDown"
+                    disabled="@isLoading"
+                    rows="1"></textarea>
+                
+                <button class="btn-send" @onclick="SendMessage" disabled="@(isLoading || string.IsNullOrWhiteSpace(currentMessage))">
+                    <i class="bi bi-send"></i>
+                    <span>Enviar</span>
+                </button>
+            </div>
+            
+            <div class="input-footer">
+                <div class="footer-left">
+                    <span class="char-count">@currentMessage.Length / 2000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private class SimpleMessage
+    {
+        public string Role { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+    }
+    
+    private List<SimpleMessage> messages = new();
+    private string currentMessage = string.Empty;
+    private bool isLoading = false;
+    private bool isSidebarCollapsed = false;
+    
+    private void StartNewSession()
+    {
+        messages.Clear();
+        currentMessage = string.Empty;
+        StateHasChanged();
+    }
+    
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(currentMessage) || isLoading)
+            return;
+        
+        var userMessage = currentMessage.Trim();
+        currentMessage = string.Empty;
+        
+        try
+        {
+            isLoading = true;
+            
+            // Agregar mensaje del usuario
+            messages.Add(new SimpleMessage
+            {
+                Role = "user",
+                Content = userMessage,
+                Timestamp = DateTime.Now
+            });
+            
+            StateHasChanged();
+            
+            // Llamar al servicio RAG
+            Logger.LogInformation("Calling RAG service with query: {Query}", userMessage);
+            var response = await RagService.QueryAsync(userMessage);
+            
+            // Agregar respuesta del asistente
+            messages.Add(new SimpleMessage
+            {
+                Role = "assistant",
+                Content = response,
+                Timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error calling RAG service");
+            
+            string errorMessage;
+            if (ex.Message.Contains("404") || ex.Message.Contains("Not Found"))
+            {
+                errorMessage = "⏳ El servicio de IA está iniciando. Por favor espera unos minutos y vuelve a intentar. " +
+                              "Los modelos de Ollama (llama3.2 y nomic-embed-text) se están descargando en segundo plano.";
+            }
+            else if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
+            {
+                errorMessage = "🔌 No se puede conectar al servicio de IA. Verifica que Ollama esté corriendo.";
+            }
+            else
+            {
+                errorMessage = $"❌ Error al procesar la consulta: {ex.Message}";
+            }
+            
+            messages.Add(new SimpleMessage
+            {
+                Role = "assistant",
+                Content = errorMessage,
+                Timestamp = DateTime.Now
+            });
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Key == "Enter")
+        {
+            if (!e.ShiftKey)
+            {
+                await SendMessage();
+            }
+        }
+    }
+    
+    private void ToggleSidebar()
+    {
+        isSidebarCollapsed = !isSidebarCollapsed;
+        StateHasChanged();
+    }
+    
+    private void ClearChat()
+    {
+        messages.Clear();
+        currentMessage = string.Empty;
+        StateHasChanged();
+    }
+}

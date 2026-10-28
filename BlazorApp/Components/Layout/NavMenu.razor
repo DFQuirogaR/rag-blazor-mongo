@@ -1,0 +1,50 @@
+﻿@rendermode InteractiveServer
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <button class="navbar-toggler" @onclick="ToggleSidebar">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</div>
+
+<div class="sidebar-container @(Collapsed ? "collapsed" : "")">
+    <nav class="nav flex-column">
+        <div class="nav-item">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill"></i>
+                @if (!Collapsed)
+                {
+                    <span>Home</span>
+                }
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="chat">
+                <i class="bi bi-chat-dots-fill"></i>
+                @if (!Collapsed)
+                {
+                    <span>Chat</span>
+                }
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="documents">
+                <i class="bi bi-folder-fill"></i>
+                @if (!Collapsed)
+                {
+                    <span>Documentos</span>
+                }
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool Collapsed = false;
+
+    private void ToggleSidebar()
+    {
+        Collapsed = !Collapsed;
+    }
+}

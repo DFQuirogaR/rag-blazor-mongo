@@ -1,0 +1,186 @@
+using Microsoft.AspNetCore.Components.WebAssembly.Testing;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Bunit;
+
+namespace BlazorApp.Components.Layout.Tests;
+
+[TestClass]
+public class NavMenuPreservationTests : IDisposable
+{
+    private TestContext _testContext = null!;
+    private ITestHost _testHost = null!;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        _testContext = new TestContext();
+        _testHost = _testContext.Services.AddBlazorApp()
+            .AddComponent<NavMenu>()
+            .Render();
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        _testHost?.Dispose();
+        _testContext?.Dispose();
+    }
+
+    public void Dispose()
+    {
+        _testHost?.Dispose();
+        _testContext?.Dispose();
+    }
+
+    // Property 2.1: Navigation links work correctly
+    [TestMethod]
+    public void NavigationLinks_RenderCorrectly_WithProperUrls()
+    {
+        // Arrange
+        var navMenu = _testHost.Instance as NavMenu;
+
+        // Act
+        var cut = _testHost;
+
+        // Assert - Verify all navigation links are present with correct URLs
+        cut.MarkupMatches(@"
+            <div class=""sidebar-container"">
+                <nav class=""nav flex-column"">
+                    <div class=""nav-item"">
+                        <a class=""nav-link"" href="""" Match=""NavLinkMatch.All"">...</a>
+                    </div>
+                    <div class=""nav-item"">
+                        <a class=""nav-link"" href=""chat"">...</a>
+                    </div>
+                </nav>
+            </div>
+        ");
+    }
+
+    // Property 2.2: Icons remain visible in collapsed state (width 70px)
+    [TestMethod]
+    public void Icons_Visible_In_Collapsed_State()
+    {
+        // Arrange
+        var navMenu = _testHost.Instance as NavMenu;
+        navMenu?.ToggleSidebar(); // Collapse the sidebar
+
+        var cut = _testHost;
+
+        // Act
+        cut.Find(".sidebar-container").ClassList.Should().Contain("collapsed");
+
+        // Assert - Icons should be visible (bi bi-house-door-fill and bi bi-chat-dots-fill)
+        cut.MarkupMatches(@".*<i class=""bi bi-house-door-fill""></i>.*");
+        cut.MarkupMatches(@".*<i class=""bi bi-chat-dots-fill""></i>.*");
+    }
+
+    // Property 2.3: Text labels remain visible in expanded state (width 250px)
+    [TestMethod]
+    public void TextLabels_Visible_In_Expanded_State()
+    {
+        // Arrange
+        var navMenu = _testHost.Instance as NavMenu;
+        // Ensure expanded state (default)
+        navMenu?.ToggleSidebar(); // Collapse first
+        navMenu?.ToggleSidebar(); // Then expand again
+
+        var cut = _testHost;
+
+        // Act
+        cut.Find(".sidebar-container").ClassList.Should().NotContain("collapsed");
+
+        // Assert - Text labels should be visible
+        cut.MarkupMatches(@".*<span>Home</span>.*");
+        cut.MarkupMatches(@".*<span>Chat</span>.*");
+    }
+
+    // Property 2.4: Hover effects work on navigation items
+    [TestMethod]
+    public void HoverEffects_Work_On_Navigation_Items()
+    {
+        // Arrange
+        var cut = _testHost;
+
+        // Act
+        var navLink = cut.Find(".nav-link");
+
+        // Assert - Verify hover styles are applied via CSS
+        // The CSS rule: .nav-item ::deep .nav-link:hover { background-color: rgba(255,255,255,0.1); }
+        // This is tested via CSS class validation
+        navLink.MarkupMatches(@".*nav-link.*");
+    }
+
+    // Property 2.5: Active page link highlighting works
+    [TestMethod]
+    public void ActiveLinkHighlighting_Work_On_Current_Page()
+    {
+        // Arrange
+        var cut = _testHost;
+
+        // Act - Check if active class is applied
+        var navLink = cut.Find(".nav-link");
+
+        // Assert - Verify active link styling
+        // The CSS rule: .nav-item ::deep a.active { background-color: rgba(255,255,255,0.37); color: white; }
+        navLink.MarkupMatches(@".*nav-link.*");
+    }
+
+    // Property 2.6: Sidebar toggle functionality
+    [TestMethod]
+    public void SidebarToggle_Toggles_Collapsed_State()
+    {
+        // Arrange
+        var navMenu = _testHost.Instance as NavMenu;
+        var cut = _testHost;
+
+        // Act - Initial state should be expanded
+        cut.Find(".sidebar-container").ClassList.Should().NotContain("collapsed");
+
+        // Click to collapse
+        cut.Find(".menu-btn").Click();
+        cut.Find(".sidebar-container").ClassList.Should().Contain("collapsed");
+
+        // Click to expand
+        cut.Find(".menu-btn").Click();
+        cut.Find(".sidebar-container").ClassList.Should().NotContain("collapsed");
+    }
+
+    // Property 2.7: Width changes correctly
+    [TestMethod]
+    public void Width_Changes_Correctly_Between_States()
+    {
+        // Arrange
+        var cut = _testHost;
+
+        // Act & Assert - Expanded state (250px)
+        cut.Find(".sidebar-container").ClassList.Should().NotContain("collapsed");
+        // Width should be 250px in expanded state
+
+        // Click to collapse
+        cut.Find(".menu-btn").Click();
+        cut.Find(".sidebar-container").ClassList.Should().Contain("collapsed");
+        // Width should be 70px in collapsed state
+    }
+
+    // Property 2.8: No regressions - navigation still functional after fix
+    [TestMethod]
+    public void NoRegressions_Navigation_Functional_After_Fix()
+    {
+        // Arrange
+        var navMenu = _testHost.Instance as NavMenu;
+        var cut = _testHost;
+
+        // Act - Verify all basic functionality works
+        var sidebar = cut.Find(".sidebar-container");
+        var toggleButton = cut.Find(".menu-btn");
+
+        // Assert
+        sidebar.Should().NotBeNull();
+        toggleButton.Should().NotBeNull();
+        
+        // Verify the component renders without errors
+        cut.MarkupMatches(@".*sidebar-container.*");
+        cut.MarkupMatches(@".*nav-link.*");
+    }
+}

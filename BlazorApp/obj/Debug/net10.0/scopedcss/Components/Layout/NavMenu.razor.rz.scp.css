@@ -1,0 +1,103 @@
+.navbar-toggler[b-g8o6n169oq] {
+    appearance: none;
+    cursor: pointer;
+    width: 3.5rem;
+    height: 2.5rem;
+    color: white;
+    position: absolute;
+    top: 0.5rem;
+    right: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
+}
+
+.navbar-toggler:hover[b-g8o6n169oq] {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.top-row[b-g8o6n169oq] {
+    min-height: 3.5rem;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.navbar-brand[b-g8o6n169oq] {
+    font-size: 1.1rem;
+}
+
+.nav-item[b-g8o6n169oq] {
+    font-size: 0.9rem;
+    padding-bottom: 0.5rem;
+}
+
+.nav-item:first-of-type[b-g8o6n169oq] {
+    padding-top: 1rem;
+}
+
+.nav-item:last-of-type[b-g8o6n169oq] {
+    padding-bottom: 1rem;
+}
+
+.nav-item[b-g8o6n169oq]  .nav-link {
+    color: #d7d7d7;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    line-height: 3rem;
+    width: 100%;
+    padding: 0 1rem;
+}
+
+.nav-item[b-g8o6n169oq]  a.active {
+    background-color: rgba(255,255,255,0.37);
+    color: white;
+}
+
+.nav-item[b-g8o6n169oq]  .nav-link:hover {
+    background-color: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.sidebar-container[b-g8o6n169oq] {
+    width: 250px;
+    background: linear-gradient(180deg, #081b4b, #3b0055);
+    transition: width 0.3s ease;
+    overflow: hidden;
+    height: calc(100vh - 3.5rem);
+}
+
+.sidebar-container.collapsed[b-g8o6n169oq] {
+    width: 70px;
+}
+
+.nav[b-g8o6n169oq] {
+    padding: 0;
+}
+
+.nav-link[b-g8o6n169oq] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #d7d7d7;
+    padding: 12px 15px;
+    margin: 8px;
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+.nav-link i[b-g8o6n169oq] {
+    font-size: 1.2rem;
+    min-width: 24px;
+}
+
+.nav-link:hover[b-g8o6n169oq] {
+    background-color: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.nav-link.active[b-g8o6n169oq] {
+    background-color: rgba(255,255,255,0.37);
+    color: white;
+}

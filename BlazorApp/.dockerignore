@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.log
+.DS_Store
+.git/
+.github/
+.kiro/
+BlazorApp.Tests/
+BlazorAppTests/
+*.Tests.cs
+*.Test.cs
