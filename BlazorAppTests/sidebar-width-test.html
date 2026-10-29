@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sidebar Width Bug Test</title>
+    <style>
+        .sidebar-container {
+            width: 250px;
+            background: linear-gradient(180deg, #081b4b, #3b0055);
+            transition: width 0.3s ease, background-color 0.3s ease;
+            overflow-y: auto;
+            white-space: nowrap;
+            height: 500px;
+            padding: 15px;
+            color: white;
+        }
+
+        .sidebar-container.collapsed {
+            width: 70px;
+        }
+
+        .test-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4a90d9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .test-btn:hover {
+            background-color: #357abd;
+        }
+
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sidebar Width Bug Condition Test</h1>
+    
+    <button class="test-btn" id="toggleBtn">Toggle Sidebar</button>
+    
+    <div class="sidebar-container" id="sidebar">
+        <p>Sidebar Content</p>
+        <p>Width should change when button is clicked</p>
+    </div>
+    
+    <div class="test-results" id="results">
+        <h3>Test Results:</h3>
+        <p id="initialWidth">Initial width: Not measured</p>
+        <p id="afterToggleWidth">After toggle: Not measured</p>
+        <p id="testResult">Test status: Waiting...</p>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const initialWidthEl = document.getElementById('initialWidth');
+        const afterToggleWidthEl = document.getElementById('afterToggleWidth');
+        const testResultEl = document.getElementById('testResult');
+        
+        let initialWidth = null;
+        let testCompleted = false;
+        
+        // Measure initial width when page loads
+        window.addEventListener('load', () => {
+            initialWidth = sidebar.offsetWidth;
+            initialWidthEl.textContent = `Initial width: ${initialWidth}px`;
+            console.log('Initial width measured:', initialWidth, 'px');
+        });
+        
+        toggleBtn.addEventListener('click', () => {
+            if (testCompleted) {
+                // Reset test
+                resetTest();
+                return;
+            }
+            
+            // Get current width before toggle
+            const currentWidth = sidebar.offsetWidth;
+            initialWidth = currentWidth;
+            initialWidthEl.textContent = `Initial width: ${currentWidth}px`;
+            
+            console.log('Before toggle:', currentWidth, 'px');
+            console.log('Has collapsed class:', sidebar.classList.contains('collapsed'));
+            
+            // Toggle the class
+            sidebar.classList.toggle('collapsed');
+            
+            // Wait for transition to complete then measure
+            setTimeout(() => {
+                const afterToggleWidth = sidebar.offsetWidth;
+                afterToggleWidthEl.textContent = `After toggle: ${afterToggleWidth}px`;
+                
+                console.log('After toggle:', afterToggleWidth, 'px');
+                console.log('Has collapsed class:', sidebar.classList.contains('collapsed'));
+                
+                // Check if width changed
+                const widthChanged = currentWidth !== afterToggleWidth;
+                
+                if (widthChanged) {
+                    testResultEl.textContent = 'Test Result: ✅ PASS - Width changed correctly';
+                    testResultEl.style.color = 'green';
+                    testResultEl.innerHTML += `<br>Expected: Width should change from ${currentWidth}px to 70px`;
+                } else {
+                    testResultEl.textContent = 'Test Result: ❌ FAIL - Width did NOT change (BUG DETECTED)';
+                    testResultEl.style.color = 'red';
+                    testResultEl.innerHTML += `<br>Counterexample: Width stayed at ${currentWidth}px after toggle`;
+                }
+                
+                testCompleted = true;
+                
+                // Show reset button
+                toggleBtn.textContent = 'Reset Test';
+                toggleBtn.style.backgroundColor = '#6c757d';
+            }, 500); // Wait for transition
+        });
+        
+        function resetTest() {
+            sidebar.classList.remove('collapsed');
+            testCompleted = false;
+            initialWidthEl.textContent = 'Initial width: Not measured';
+            afterToggleWidthEl.textContent = 'After toggle: Not measured';
+            testResultEl.textContent = 'Test status: Waiting...';
+            testResultEl.style.color = 'black';
+            toggleBtn.textContent = 'Toggle Sidebar';
+            toggleBtn.style.backgroundColor = '#4a90d9';
+        }
+    </script>
+</body>
+</html>

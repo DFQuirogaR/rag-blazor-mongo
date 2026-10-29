@@ -1,7 +1,7 @@
 @page "/chat"
-@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.Web
 @using BlazorApp.Services
+@using BlazorApp.Components
 @inject RagService RagService
 @inject ILogger<Chat> Logger
 
@@ -82,7 +82,14 @@
                     <div class="chat-message @(message.Role == "user" ? "user" : "assistant")">
                         <div class="message-bubble @message.Role">
                             <div class="message-content">
-                                <p>@message.Content</p>
+                                @if (message.Role == "assistant")
+                                {
+                                    <MarkdownRenderer Content="@message.Content" ShowActions="true" />
+                                }
+                                else
+                                {
+                                    <p>@message.Content</p>
+                                }
                             </div>
                             <div class="message-footer @message.Role">
                                 <span class="message-time">@message.Timestamp.ToString("HH:mm")</span>
@@ -113,10 +120,12 @@
                     disabled="@isLoading"
                     rows="1"></textarea>
                 
-                <button class="btn-send" @onclick="SendMessage" disabled="@(isLoading || string.IsNullOrWhiteSpace(currentMessage))">
-                    <i class="bi bi-send"></i>
-                    <span>Enviar</span>
-                </button>
+                <div class="input-actions">
+                    <button class="btn-send" @onclick="SendMessage" disabled="@(isLoading || string.IsNullOrWhiteSpace(currentMessage))">
+                        <i class="bi bi-send"></i>
+                        <span>Enviar</span>
+                    </button>
+                </div>
             </div>
             
             <div class="input-footer">
@@ -148,6 +157,11 @@
         StateHasChanged();
     }
     
+    private void OnMessageInput(ChangeEventArgs e)
+    {
+        currentMessage = e.Value?.ToString() ?? string.Empty;
+    }
+
     private async Task SendMessage()
     {
         if (string.IsNullOrWhiteSpace(currentMessage) || isLoading)

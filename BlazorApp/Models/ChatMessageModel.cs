@@ -67,14 +67,3 @@ public class ChatMessageModel
         };
     }
 }
-
-public class MessageMetadata
-{
-    public string? ModelName { get; set; }
-    public double? ConfidenceScore { get; set; }
-    public int? ContextChunksUsed { get; set; }
-    public double? AverageContextSimilarity { get; set; }
-    public List<string>? SourceDocuments { get; set; }
-    public int? TokensUsed { get; set; }
-    public Dictionary<string, string>? CustomMetadata { get; set; }
-}

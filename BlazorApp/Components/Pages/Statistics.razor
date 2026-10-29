@@ -1,0 +1,160 @@
+@page "/statistics"
+@using BlazorApp.Middleware
+@inject IMetricsCollector MetricsCollector
+
+@code {
+    private MetricsSnapshot? _snapshot;
+    private DateTime _lastUpdate;
+
+    protected override void OnInitialized()
+    {
+        _snapshot = MetricsCollector.GetSnapshot();
+        _lastUpdate = DateTime.UtcNow;
+    }
+
+    private void RefreshData()
+    {
+        _snapshot = MetricsCollector.GetSnapshot();
+        _lastUpdate = DateTime.UtcNow;
+        StateHasChanged();
+    }
+}
+
+<div class="statistics-container">
+    <h3>📊 Statistics Dashboard</h3>
+    <p class="last-update">Last updated: @_lastUpdate.ToString("HH:mm:ss")</p>
+    
+    <div class="refresh-buttons">
+        <button @onclick="RefreshData" class="btn-refresh">🔄 Refresh</button>
+    </div>
+
+    @if (_snapshot != null)
+    {
+        <div class="metrics-grid">
+            <!-- Request Metrics -->
+            <div class="metric-card">
+                <h4>⏱️ Request Performance</h4>
+                <div class="metric-values">
+                    <div class="metric-item">
+                        <span class="metric-label">Total Requests</span>
+                        <span class="metric-value">@_snapshot.RequestMetrics.Count</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Avg Duration</span>
+                        <span class="metric-value">@_snapshot.RequestMetrics.AverageMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Min/Max</span>
+                        <span class="metric-value">@_snapshot.RequestMetrics.MinMs / @_snapshot.RequestMetrics.MaxMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Std Dev</span>
+                        <span class="metric-value">@_snapshot.RequestMetrics.StandardDeviationMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Slow Requests</span>
+                        <span class="metric-value warning">@_snapshot.RequestMetrics.ThresholdBreaches</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Metrics -->
+            <div class="metric-card">
+                <h4>🤖 LLM Performance</h4>
+                <div class="metric-values">
+                    <div class="metric-item">
+                        <span class="metric-label">Total Calls</span>
+                        <span class="metric-value">@_snapshot.LlmMetrics.Count</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Avg Duration</span>
+                        <span class="metric-value">@_snapshot.LlmMetrics.AverageMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Min/Max</span>
+                        <span class="metric-value">@_snapshot.LlmMetrics.MinMs / @_snapshot.LlmMetrics.MaxMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Slow Requests</span>
+                        <span class="metric-value warning">@_snapshot.LlmMetrics.ThresholdBreaches</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Metrics -->
+            <div class="metric-card">
+                <h4>💾 Database Performance</h4>
+                <div class="metric-values">
+                    <div class="metric-item">
+                        <span class="metric-label">Total Queries</span>
+                        <span class="metric-value">@_snapshot.DatabaseMetrics.Count</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Avg Duration</span>
+                        <span class="metric-value">@_snapshot.DatabaseMetrics.AverageMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Min/Max</span>
+                        <span class="metric-value">@_snapshot.DatabaseMetrics.MinMs / @_snapshot.DatabaseMetrics.MaxMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Slow Queries</span>
+                        <span class="metric-value warning">@_snapshot.DatabaseMetrics.ThresholdBreaches</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAG Operations -->
+            <div class="metric-card">
+                <h4>🔍 RAG Operations</h4>
+                <div class="metric-values">
+                    <div class="metric-item">
+                        <span class="metric-label">Total Operations</span>
+                        <span class="metric-value">@_snapshot.RagMetrics.Count</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Avg Duration</span>
+                        <span class="metric-value">@_snapshot.RagMetrics.AverageMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Min/Max</span>
+                        <span class="metric-value">@_snapshot.RagMetrics.MinMs / @_snapshot.RagMetrics.MaxMs ms</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Slow Operations</span>
+                        <span class="metric-value warning">@_snapshot.RagMetrics.ThresholdBreaches</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <h4>⚡ Quick Statistics</h4>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-label">Peak Request Time</span>
+                    <span class="stat-value">@_snapshot.RequestMetrics.MaxMs ms</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Peak LLM Time</span>
+                    <span class="stat-value">@_snapshot.LlmMetrics.MaxMs ms</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Slowest Operation</span>
+                    <span class="stat-value">@(_snapshot.RagMetrics.MaxMs > 0 ? $"{_snapshot.RagMetrics.MaxMs} ms" : "N/A")</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Alerts</span>
+                    <span class="stat-value alert">@(_snapshot.RequestMetrics.ThresholdBreaches + _snapshot.LlmMetrics.ThresholdBreaches + _snapshot.DatabaseMetrics.ThresholdBreaches)</span>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="no-data">
+            <p>No metrics data available yet. Start using the application to see metrics!</p>
+        </div>
+    }
+</div>

@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Create sidebar collapse fix config",
+      "trigger": "PostFileCreate",
+      "description": "Create spec config file",
+      "action": {
+        "type": "command",
+        "command": "Write-Host \"Creating config file for sidebar-collapse-fix spec\""
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Markdig;
 
 namespace BlazorApp.Services;
 
@@ -8,10 +9,19 @@ namespace BlazorApp.Services;
 public class ResponseFormatter
 {
     private readonly ILogger<ResponseFormatter> _logger;
+    private readonly MarkdownPipeline _pipeline;
 
     public ResponseFormatter(ILogger<ResponseFormatter> logger)
     {
         _logger = logger;
+        
+        // Setup enhanced Markdown pipeline
+        _pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .UseEmphasisExtras()
+            .UseAutoLinks()
+            .UseCitations()
+            .Build();
     }
 
     /// <summary>
@@ -31,10 +41,10 @@ public class ResponseFormatter
             // Paso 1: Limpiar respuesta básica
             formattedResponse = CleanResponse(formattedResponse);
 
-            // Paso 2: Formatear según opciones
+            // Paso 2: Parsear Markdown con Markdig
             if (options.FormatMarkdown)
             {
-                formattedResponse = FormatMarkdown(formattedResponse);
+                formattedResponse = FormatMarkdownWithMarkdig(formattedResponse);
             }
 
             if (options.HighlightCode)
@@ -109,7 +119,26 @@ public class ResponseFormatter
     }
 
     /// <summary>
-    /// Formatea texto Markdown básico
+    /// Formatea texto Markdown usando Markdig para mejor calidad
+    /// </summary>
+    private string FormatMarkdownWithMarkdig(string text)
+    {
+        try
+        {
+            // Parse Markdown to HTML using Markdig
+            var html = Markdown.ToHtml(text, _pipeline);
+            return html;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error parsing Markdown with Markdig, falling back to basic regex");
+            // Fallback to basic regex if Markdig fails
+            return FormatMarkdown(text);
+        }
+    }
+
+    /// <summary>
+    /// Formatea texto Markdown básico (fallback)
     /// </summary>
     private string FormatMarkdown(string text)
     {
@@ -168,13 +197,14 @@ public class ResponseFormatter
     {
         var formatted = text;
 
+        // Enhance code block formatting
         formatted = System.Text.RegularExpressions.Regex.Replace(
             formatted,
             @"<pre class=""code-block language-(\w+)""><code>([\s\S]*?)</code></pre>",
             match =>
             {
                 var language = match.Groups[1].Value;
-                var code = System.Web.HttpUtility.HtmlEncode(match.Groups[2].Value);
+                var code = match.Groups[2].Value;
                 
                 return $@"
                 <div class=""code-container"">
@@ -224,30 +254,35 @@ public class ResponseFormatter
     }
 
     /// <summary>
-    /// Agrega sección de fuentes
+    /// Agrega sección de fuentes con formatos mejorados
     /// </summary>
     private string AddSourcesSection(string text, List<string> sources)
     {
         if (!sources.Any())
             return text;
 
-        var sourcesHtml = @"
+        var sourcesHtml = $@"
             <div class=""sources-section"">
                 <div class=""sources-header"">
                     <i class=""bi bi-file-text""></i>
-                    <span>Fuentes utilizadas:</span>
+                    <span>Fuentes utilizadas ({sources.Count}):</span>
                 </div>
                 <div class=""sources-list"">";
 
+        int sourceNum = 1;
         foreach (var source in sources.Distinct().Take(5)) // Limitar a 5 fuentes
         {
-            sourcesHtml += $@"<div class=""source-item"">
-                <i class=""bi bi-file-earmark""></i>
-                <span>{source}</span>
-            </div>";
+            sourcesHtml += $@"
+                <div class=""source-item"">
+                    <span class=""source-number"">[{sourceNum}]</span>
+                    <span class=""source-text"">{source}</span>
+                </div>";
+            sourceNum++;
         }
 
-        sourcesHtml += "</div></div>";
+        sourcesHtml += @"
+                </div>
+            </div>";
 
         return text + sourcesHtml;
     }

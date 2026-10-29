@@ -153,7 +153,7 @@ public class RagService
             {
                 contextBuilder.AppendLine($"[Documento: {document.FileName}]");
             }
-            contextBuilder.AppendLine(chunk.Content);
+            contextBuilder.AppendLine(chunk.ChunkText);
             contextBuilder.AppendLine();
             contextBuilder.AppendLine("---");
             contextBuilder.AppendLine();

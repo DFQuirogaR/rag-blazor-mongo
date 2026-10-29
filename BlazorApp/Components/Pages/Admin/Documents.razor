@@ -1,0 +1,746 @@
+@page "/documents"
+@using BlazorApp.Services
+@using BlazorApp.Models
+@inject DocumentManagementService DocumentManagementService
+@inject DocumentScanner DocumentScanner
+@inject DocumentProcessor DocumentProcessor
+@inject ILogger<Documents> Logger
+
+<PageTitle>Documentos - Gestión</PageTitle>
+
+<div class="documents-container">
+    <!-- Header -->
+    <div class="documents-header">
+        <h2>gestión de documentos</h2>
+        <div class="header-stats">
+            <button class="btn-refresh" @onclick="RefreshDocuments" disabled="@isLoading">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span>@(isLoading ? "Procesando..." : "Escanear y actualizar")</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="statistics-container">
+        <div class="stat-card total">
+            <div class="stat-icon">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@statistics.TotalDocuments</h3>
+                <p>Total Documentos</p>
+            </div>
+        </div>
+        <div class="stat-card completed">
+            <div class="stat-icon">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@statistics.CompletedDocuments</h3>
+                <p>Procesados</p>
+            </div>
+        </div>
+        <div class="stat-card processing">
+            <div class="stat-icon">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@statistics.ProcessingDocuments</h3>
+                <p>En Proceso</p>
+            </div>
+        </div>
+        <div class="stat-card failed">
+            <div class="stat-icon">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@statistics.FailedDocuments</h3>
+                <p>Con Error</p>
+            </div>
+        </div>
+        <div class="stat-card chunks">
+            <div class="stat-icon">
+                <i class="bi bi-list-ol"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@statistics.TotalChunks</h3>
+                <p>Total Chunks</p>
+            </div>
+        </div>
+        <div class="stat-card size">
+            <div class="stat-icon">
+                <i class="bi bi-hdd-stack"></i>
+            </div>
+            <div class="stat-content">
+                <h3>@(FormatSize(statistics.TotalSizeBytes))</h3>
+                <p>Uso de Almacenamiento</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="search-container">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="text"
+                   value="@searchTerm"
+                   @oninput="HandleSearchInput"
+                   placeholder="Buscar por nombre de archivo o tags..."
+                   class="search-input" />
+            @if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                <button class="btn-clear" @onclick="ClearSearch">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            }
+        </div>
+        
+        <div class="filter-container">
+            <select value="@selectedStatus" @onchange="HandleStatusChanged" class="status-select">
+                <option value="">Todos los Estados</option>
+                <option value="pending">Pendiente</option>
+                <option value="processing">En Proceso</option>
+                <option value="completed">Completado</option>
+                <option value="failed">Error</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Documents Table -->
+    <div class="table-container">
+        @if (isLoading)
+        {
+            <div class="loading-overlay">
+                <div class="spinner"></div>
+                <p>Cargando documentos...</p>
+            </div>
+        }
+
+        @if (string.IsNullOrWhiteSpace(searchTerm) && string.IsNullOrWhiteSpace(selectedStatus))
+        {
+            <div class="table-wrapper">
+                <table class="documents-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre del Archivo</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Chunks</th>
+                            <th>Cargado</th>
+                            <th>Tags</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var doc in documents.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="file-name-cell">
+                                        <i class="bi bi-file-earmark @GetFileIcon(doc.FileType)"></i>
+                                        <span class="file-name" title="@doc.FileName">@doc.FileName</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="file-type">@doc.FileType.ToUpper()</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge @doc.ProcessingStatus.ToLower()">
+                                        @GetStatusText(doc.ProcessingStatus)
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="chunk-count">@doc.ChunkCount</span>
+                                </td>
+                                <td>
+                                    <span class="upload-date">@doc.UploadDate.ToString("dd/MM/yyyy HH:mm")</span>
+                                </td>
+                                <td>
+                                    <div class="tags-container">
+                                        @if (doc.Tags?.Count > 0)
+                                        {
+                                            @foreach (var tag in doc.Tags.Take(3))
+                                            {
+                                                <span class="tag">@tag</span>
+                                            }
+                                            @if (doc.Tags.Count > 3)
+                                            {
+                                                <span class="tag more">+@(doc.Tags.Count - 3)</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="no-tags">-</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="actions">
+                                    <button class="btn-action reprocess" 
+                                            @onclick="() => ReprocessDocument(doc.Id)"
+                                            title="Re-procesar documento">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="btn-action view" 
+                                            @onclick="() => ViewDocumentChunks(doc.Id)"
+                                            title="Ver chunks">
+                                        <i class="bi bi-list-ul"></i>
+                                    </button>
+                                    <button class="btn-action delete" 
+                                            @onclick="() => DeleteDocument(doc.Id)"
+                                            title="Eliminar documento">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (documents.Items.Count == 0 && !isLoading)
+                        {
+                            <tr>
+                                <td colspan="7" class="no-results">
+                                    <div class="no-results-content">
+                                        <i class="bi bi-inbox"></i>
+                                        <p>No se encontraron documentos</p>
+                                        @if (!string.IsNullOrWhiteSpace(searchTerm) || !string.IsNullOrWhiteSpace(selectedStatus))
+                                        {
+                                            <p class="hint">Intenta ajustar tus filtros de búsqueda</p>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span>Mostrando @(documents.Items.Count > 0 ? documents.Page * documents.PageSize + 1 : 0) - 
+                          @(Math.Min((documents.Page + 1) * documents.PageSize, documents.TotalCount)) de 
+                          @documents.TotalCount documentos</span>
+                </div>
+                
+                <div class="pagination-controls">
+                    <button class="btn-page" 
+                            @onclick="() => ChangePage(documents.Page - 1)"
+                            disabled="!documents.HasPreviousPage || isLoading">
+                        <i class="bi bi-chevron-left"></i>
+                        <span>Anterior</span>
+                    </button>
+                    
+                    <div class="page-indicator">
+                        <span>Página @((documents.Page + 1)) de @documents.TotalPages</span>
+                    </div>
+                    
+                    <button class="btn-page" 
+                            @onclick="() => ChangePage(documents.Page + 1)"
+                            disabled="!documents.HasNextPage || isLoading">
+                        <span>Siguiente</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="documents-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre del Archivo</th>
+                            <th>Estado</th>
+                            <th>Chunks</th>
+                            <th>Cargado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var doc in documents.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="file-name-cell">
+                                        <i class="bi bi-file-earmark @GetFileIcon(doc.FileType)"></i>
+                                        <span class="file-name" title="@doc.FileName">@doc.FileName</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-badge @doc.ProcessingStatus.ToLower()">
+                                        @GetStatusText(doc.ProcessingStatus)
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="chunk-count">@doc.ChunkCount</span>
+                                </td>
+                                <td>
+                                    <span class="upload-date">@doc.UploadDate.ToString("dd/MM/yyyy HH:mm")</span>
+                                </td>
+                                <td class="actions">
+                                    <button class="btn-action reprocess" 
+                                            @onclick="() => ReprocessDocument(doc.Id)"
+                                            title="Re-procesar documento">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="btn-action view" 
+                                            @onclick="() => ViewDocumentChunks(doc.Id)"
+                                            title="Ver chunks">
+                                        <i class="bi bi-list-ul"></i>
+                                    </button>
+                                    <button class="btn-action delete" 
+                                            @onclick="() => DeleteDocument(doc.Id)"
+                                            title="Eliminar documento">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (documents.Items.Count == 0 && !isLoading)
+                        {
+                            <tr>
+                                <td colspan="5" class="no-results">
+                                    <div class="no-results-content">
+                                        <i class="bi bi-inbox"></i>
+                                        <p>No se encontraron documentos</p>
+                                        @if (!string.IsNullOrWhiteSpace(searchTerm) || !string.IsNullOrWhiteSpace(selectedStatus))
+                                        {
+                                            <p class="hint">Intenta ajustar tus filtros de búsqueda</p>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination for search results -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span>Mostrando @(documents.Items.Count > 0 ? documents.Page * documents.PageSize + 1 : 0) - 
+                          @(Math.Min((documents.Page + 1) * documents.PageSize, documents.TotalCount)) de 
+                          @documents.TotalCount documentos</span>
+                </div>
+                
+                <div class="pagination-controls">
+                    <button class="btn-page" 
+                            @onclick="() => ChangePage(documents.Page - 1)"
+                            disabled="!documents.HasPreviousPage || isLoading">
+                        <i class="bi bi-chevron-left"></i>
+                        <span>Anterior</span>
+                    </button>
+                    
+                    <div class="page-indicator">
+                        <span>Página @((documents.Page + 1)) de @documents.TotalPages</span>
+                    </div>
+                    
+                    <button class="btn-page" 
+                            @onclick="() => ChangePage(documents.Page + 1)"
+                            disabled="!documents.HasNextPage || isLoading">
+                        <span>Siguiente</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Document Chunks Modal -->
+@if (showChunksModal)
+{
+    <div class="modal-overlay" @onclick="CloseChunksModal">
+        <div class="modal-content chunks-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Chunks del documento: @currentDocument?.FileName</h3>
+                <button class="btn-close" @onclick="CloseChunksModal">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-body chunks-body">
+                @if (currentChunks != null && currentChunks.Count > 0)
+                {
+                    <div class="chunks-list">
+                        @foreach (var chunk in currentChunks)
+                        {
+                            <div class="chunk-item">
+                                <div class="chunk-header">
+                                    <span class="chunk-index">Chunk #@chunk.ChunkIndex</span>
+                                    <span class="chunk-meta">
+                                        Página: @(chunk.PageNumber ?? 0) | 
+                                        Caracteres: @chunk.CharacterCount
+                                    </span>
+                                </div>
+                                <div class="chunk-content">
+                                    @chunk.ChunkText
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="no-chunks">
+                        <i class="bi bi-file-earmark"></i>
+                        <p>No hay chunks disponibles para este documento</p>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" @onclick="CloseChunksModal">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Confirmation Modal -->
+@if (showConfirmModal)
+{
+    <div class="modal-overlay" @onclick="CloseConfirmModal">
+        <div class="modal-content confirm-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Confirmar Acción</h3>
+                <button class="btn-close" @onclick="CloseConfirmModal">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-message">@confirmMessage</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" @onclick="CloseConfirmModal">
+                    Cancelar
+                </button>
+                <button class="btn-danger" @onclick="ExecuteConfirmAction">
+                    @confirmActionText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Success/Error Toast -->
+@if (showToast)
+{
+    <div class="toast-container">
+        <div class="toast @toastType">
+            <div class="toast-content">
+                <i class="bi @GetToastIcon()"></i>
+                <div class="toast-message">
+                    <p>@toastMessage</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<DocumentModel> documentsList = new();
+    private PagedResult<DocumentModel> documents = new();
+    private DocumentStatistics statistics = new();
+    private bool isLoading = false;
+    private string searchTerm = string.Empty;
+    private string selectedStatus = string.Empty;
+    private int currentPage = 0;
+    
+    // Modal states
+    private bool showChunksModal = false;
+    private DocumentModel? currentDocument = null;
+    private List<ChunkModel>? currentChunks = null;
+    
+    private bool showConfirmModal = false;
+    private string confirmMessage = string.Empty;
+    private string confirmActionText = string.Empty;
+    private Func<Task>? confirmAction;
+    
+    private bool showToast = false;
+    private string toastMessage = string.Empty;
+    private string toastType = string.Empty; // success, error
+    private int loadVersion;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task HandleSearchInput(ChangeEventArgs args)
+    {
+        searchTerm = args.Value?.ToString() ?? string.Empty;
+        await ApplyFilters();
+    }
+
+    private async Task HandleStatusChanged(ChangeEventArgs args)
+    {
+        selectedStatus = args.Value?.ToString() ?? string.Empty;
+        await ApplyFilters();
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 0;
+        await LoadData();
+        StateHasChanged();
+    }
+
+    private async Task RefreshDocuments()
+    {
+        if (isLoading)
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var scanResult = await DocumentScanner.ScanAndProcessAsync(CancellationToken.None);
+            var message = $"Escaneo completado: {scanResult.ProcessedFiles} procesados, " +
+                          $"{scanResult.SkippedFiles} omitidos y {scanResult.FailedFiles} con error.";
+            ShowToast(message, scanResult.FailedFiles > 0 ? "error" : "success");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error scanning documents from admin page");
+            ShowToast("Error al escanear los documentos", "error");
+        }
+        finally
+        {
+            isLoading = false;
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        var requestVersion = Interlocked.Increment(ref loadVersion);
+        isLoading = true;
+        StateHasChanged();
+        
+        try
+        {
+            // Load both datasets for this exact filter state. A newer request may
+            // start while the user is typing; stale responses must not overwrite it.
+            var loadedStatistics = await DocumentManagementService.GetStatisticsAsync();
+            var loadedDocuments = await DocumentManagementService.GetDocumentsAsync(
+                page: currentPage,
+                pageSize: 20,
+                status: string.IsNullOrWhiteSpace(selectedStatus) ? null : selectedStatus,
+                searchTerm: string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm
+            );
+
+            if (requestVersion != loadVersion)
+            {
+                return;
+            }
+
+            statistics = loadedStatistics;
+            documents = loadedDocuments;
+            documentsList = documents.Items.ToList();
+        }
+        catch (Exception ex)
+        {
+            if (requestVersion == loadVersion)
+            {
+                Logger.LogError(ex, "Error loading documents");
+                ShowToast("Error al cargar los documentos", "error");
+            }
+        }
+        finally
+        {
+            if (requestVersion == loadVersion)
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page >= 0 && page < documents.TotalPages)
+        {
+            currentPage = page;
+            await LoadData();
+        }
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        selectedStatus = string.Empty;
+        currentPage = 0;
+        await LoadData();
+    }
+
+    private async Task ReprocessDocument(string documentId)
+    {
+        showConfirmModal = true;
+        confirmMessage = "¿Estás seguro de que quieres re-procesar este documento? Se eliminarán los chunks actuales y se crearán nuevos.";
+        confirmActionText = "Re-procesar";
+        
+        confirmAction = async () =>
+        {
+            showConfirmModal = false;
+            isLoading = true;
+            StateHasChanged();
+            
+            try
+            {
+                var result = await DocumentManagementService.ReprocessDocumentAsync(documentId);
+                
+                if (result != null)
+                {
+                    ShowToast("Documento re-procesado correctamente", "success");
+                    await LoadData();
+                }
+                else
+                {
+                    ShowToast("Error al re-procesar el documento", "error");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error reprocessing document");
+                ShowToast("Error al re-procesar el documento", "error");
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        };
+        
+        StateHasChanged();
+    }
+
+    private void DeleteDocument(string documentId)
+    {
+        showConfirmModal = true;
+        confirmMessage = "¿Estás seguro de que quieres eliminar este documento? Esta acción eliminará el documento y todos sus chunks asociados. No se puede deshacer.";
+        confirmActionText = "Eliminar";
+        
+        confirmAction = async () =>
+        {
+            showConfirmModal = false;
+            isLoading = true;
+            StateHasChanged();
+            
+            try
+            {
+                var result = await DocumentManagementService.DeleteDocumentAsync(documentId);
+                
+                if (result)
+                {
+                    ShowToast("Documento eliminado correctamente", "success");
+                    await LoadData();
+                }
+                else
+                {
+                    ShowToast("Error al eliminar el documento", "error");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error deleting document");
+                ShowToast("Error al eliminar el documento", "error");
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        };
+        
+        StateHasChanged();
+    }
+
+    private async Task ViewDocumentChunks(string documentId)
+    {
+        currentDocument = documents.Items.FirstOrDefault(d => d.Id == documentId);
+        if (currentDocument != null)
+        {
+            showChunksModal = true;
+            currentChunks = await DocumentManagementService.GetDocumentChunksAsync(documentId);
+        }
+    }
+
+    private void CloseChunksModal()
+    {
+        showChunksModal = false;
+        currentDocument = null;
+        currentChunks = null;
+    }
+
+    private void CloseConfirmModal()
+    {
+        showConfirmModal = false;
+        confirmAction = null;
+    }
+
+    private async Task ExecuteConfirmAction()
+    {
+        var action = confirmAction;
+        confirmAction = null;
+
+        if (action != null)
+        {
+            await action();
+        }
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        
+        // Auto-hide after 3 seconds
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024:0.0} KB";
+        if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024 * 1024):0.0} MB";
+        return $"{bytes / (1024 * 1024 * 1024):0.0} GB";
+    }
+
+    private string GetStatusText(string status)
+    {
+        return status.ToLower() switch
+        {
+            "pending" => "Pendiente",
+            "processing" => "En Proceso",
+            "completed" => "Completado",
+            "failed" => "Error",
+            _ => status
+        };
+    }
+
+    private string GetFileIcon(string fileType)
+    {
+        return fileType.ToLower() switch
+        {
+            "docx" => "word",
+            "pdf" => "pdf",
+            _ => "doc"
+        };
+    }
+
+    private string GetToastIcon()
+    {
+        return toastType.ToLower() switch
+        {
+            "success" => "bi-check-circle-fill",
+            "error" => "bi-x-circle-fill",
+            _ => "bi-info-circle-fill"
+        };
+    }
+}

@@ -1,4 +1,5 @@
 using BlazorApp.Models;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using System.Security.Cryptography;
@@ -7,115 +8,120 @@ using System.Text;
 namespace BlazorApp.Services;
 
 /// <summary>
-/// Interfaz para cache de embeddings
-/// </summary>
-public interface IEmbeddingCache
-{
-    /// <summary>
-    /// Obtiene embedding desde cache si existe
-    /// </summary>
-    Task<float[]?> GetCachedEmbeddingAsync(string text, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Guarda embedding en cache
-    /// </summary>
-    Task CacheEmbeddingAsync(string text, float[] embedding, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Invalida cache para un texto específico
-    /// </summary>
-    Task InvalidateCacheAsync(string text, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Limpia cache expirado
-    /// </summary>
-    Task CleanupExpiredCacheAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Obtiene estadísticas del cache
-    /// </summary>
-    Task<CacheStatistics> GetCacheStatisticsAsync(CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Servicio de cache de embeddings con MongoDB
+/// Service for caching embeddings with hybrid memory + MongoDB storage
+/// Implements RF5.1 (embedding caching) and RNF2.3 (metrics tracking)
 /// </summary>
 public class EmbeddingCacheService : IEmbeddingCache
 {
     private readonly ILogger<EmbeddingCacheService> _logger;
     private readonly IMongoCollection<EmbeddingCache> _cacheCollection;
-    private readonly MemoryCache _memoryCache;
+    private readonly IMemoryCache _memoryCache;
+    private readonly MemoryCacheStats _stats;
+
+    // Configuration
+    private readonly TimeSpan _memoryCacheTtl = TimeSpan.FromMinutes(30);
+    private readonly TimeSpan _mongoCacheTtl = TimeSpan.FromHours(24);
 
     public EmbeddingCacheService(
         ILogger<EmbeddingCacheService> logger,
-        IMongoDatabase database)
+        IMongoDatabase database,
+        IMemoryCache memoryCache)
     {
         _logger = logger;
         _cacheCollection = database.GetCollection<EmbeddingCache>("embedding_cache");
-        _memoryCache = new MemoryCache();
+        _memoryCache = memoryCache;
+        _stats = new MemoryCacheStats();
     }
 
+    /// <summary>
+    /// Gets cached embedding for a text query
+    /// Implements hybrid caching: checks memory first, then MongoDB
+    /// </summary>
     public async Task<float[]?> GetCachedEmbeddingAsync(string text, CancellationToken cancellationToken = default)
     {
         try
         {
-            var textHash = CalculateHash(text);
-
-            // Primero buscar en cache en memoria
-            var memoryCacheResult = _memoryCache.Get(textHash);
-            if (memoryCacheResult != null)
+            if (string.IsNullOrWhiteSpace(text))
             {
-                _logger.LogDebug("Embedding obtenido de cache en memoria para hash: {Hash}", textHash);
-                return memoryCacheResult;
+                _logger.LogWarning("Empty or whitespace text provided for cache lookup");
+                return null;
             }
 
-            // Buscar en MongoDB
+            var cacheKey = CalculateCacheKey(text);
+
+            // Check memory cache first (faster)
+            if (_memoryCache.TryGetValue(cacheKey, out float[]? memoryEmbedding))
+            {
+                _stats.RecordHit();
+                _logger.LogDebug("Embedding hit in memory cache for: {TextHash}", GetTextHash(text));
+                return memoryEmbedding;
+            }
+
+            // Check MongoDB cache
             var cacheEntry = await _cacheCollection
-                .Find(c => c.QueryHash == textHash && c.ExpirationDate > DateTime.UtcNow)
+                .Find(c => c.QueryHash == cacheKey && c.ExpirationDate > DateTime.UtcNow)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (cacheEntry != null)
             {
-                // Actualizar estadísticas de uso
+                // Store in memory cache for faster subsequent access
+                _memoryCache.Set(cacheKey, cacheEntry.Embedding, _memoryCacheTtl);
+                _stats.RecordHit();
+
+                // Update usage statistics
                 await UpdateCacheUsageAsync(cacheEntry.Id, cancellationToken);
 
-                // Almacenar en cache en memoria
-                _memoryCache.Set(textHash, cacheEntry.Embedding, TimeSpan.FromMinutes(5));
-
-                _logger.LogDebug("Embedding obtenido de MongoDB cache para texto con hash: {Hash}", textHash);
+                _logger.LogDebug("Embedding hit in MongoDB cache for: {TextHash}, loaded to memory", GetTextHash(text));
                 return cacheEntry.Embedding;
             }
 
+            _stats.RecordMiss();
+            _logger.LogTrace("Embedding miss in cache for: {TextHash}", GetTextHash(text));
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al obtener embedding desde cache para texto");
+            _logger.LogError(ex, "Error retrieving embedding from cache for text");
             return null;
         }
     }
 
+    /// <summary>
+    /// Caches an embedding for a text query
+    /// Uses hybrid approach: memory first (fast), then MongoDB (persistent)
+    /// </summary>
     public async Task CacheEmbeddingAsync(string text, float[] embedding, CancellationToken cancellationToken = default)
     {
         try
         {
-            var textHash = CalculateHash(text);
-            
-            // Primero almacenar en cache en memoria
-            _memoryCache.Set(textHash, embedding, TimeSpan.FromMinutes(5));
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                _logger.LogWarning("Empty or whitespace text provided for cache storage");
+                return;
+            }
 
-            // Verificar si ya existe en MongoDB
+            if (embedding == null || embedding.Length == 0)
+            {
+                _logger.LogWarning("Empty or null embedding provided for cache storage");
+                return;
+            }
+
+            var cacheKey = CalculateCacheKey(text);
+
+            // Store in memory cache (fast access)
+            _memoryCache.Set(cacheKey, embedding, _memoryCacheTtl);
+
+            // Check if already exists in MongoDB
             var existingEntry = await _cacheCollection
-                .Find(c => c.QueryHash == textHash)
+                .Find(c => c.QueryHash == cacheKey)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingEntry != null)
             {
-                // Actualizar entrada existente
+                // Update existing entry
                 var update = Builders<EmbeddingCache>.Update
                     .Set(c => c.Embedding, embedding)
-                    .Set(c => c.ExpirationDate, DateTime.UtcNow.AddHours(24))
-                    .Inc(c => c.UsageCount, 1)
+                    .Set(c => c.ExpirationDate, DateTime.UtcNow.Add(_mongoCacheTtl))
                     .Set(c => c.LastUsedDate, DateTime.UtcNow);
 
                 await _cacheCollection.UpdateOneAsync(
@@ -123,95 +129,145 @@ public class EmbeddingCacheService : IEmbeddingCache
                     update,
                     cancellationToken: cancellationToken);
 
-                _logger.LogDebug("Embedding actualizado en cache para hash: {Hash}", textHash);
+                _logger.LogDebug("Updated cached embedding in MongoDB for: {TextHash}", GetTextHash(text));
             }
             else
             {
-                // Crear nueva entrada
+                // Create new cache entry
                 var cacheEntry = new EmbeddingCache
                 {
-                    QueryHash = textHash,
+                    QueryHash = cacheKey,
                     QueryText = text.Length > 1000 ? text.Substring(0, 1000) + "..." : text,
                     Embedding = embedding,
                     CreatedDate = DateTime.UtcNow,
-                    ExpirationDate = DateTime.UtcNow.AddHours(24), // 24 horas de cache
+                    ExpirationDate = DateTime.UtcNow.Add(_mongoCacheTtl),
                     UsageCount = 1,
                     LastUsedDate = DateTime.UtcNow
                 };
 
                 await _cacheCollection.InsertOneAsync(cacheEntry, cancellationToken: cancellationToken);
-                _logger.LogDebug("Nuevo embedding guardado en cache para hash: {Hash}", textHash);
+                _logger.LogDebug("Cached new embedding in MongoDB for: {TextHash}", GetTextHash(text));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al guardar embedding en cache");
+            _logger.LogError(ex, "Error caching embedding for text");
         }
     }
 
+    /// <summary>
+    /// Invalidates cache entry for a specific text
+    /// Removes from both memory and MongoDB
+    /// </summary>
     public async Task InvalidateCacheAsync(string text, CancellationToken cancellationToken = default)
     {
         try
         {
-            var textHash = CalculateHash(text);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                _logger.LogWarning("Empty or whitespace text provided for cache invalidation");
+                return;
+            }
 
-            // Invalidar en cache en memoria
-            _memoryCache.Remove(textHash);
+            var cacheKey = CalculateCacheKey(text);
 
-            // Invalidar en MongoDB
-            var deleteResult = await _cacheCollection.DeleteOneAsync(
-                c => c.QueryHash == textHash,
+            // Remove from memory cache
+            _memoryCache.Remove(cacheKey);
+
+            // Remove from MongoDB
+            var result = await _cacheCollection.DeleteOneAsync(
+                c => c.QueryHash == cacheKey,
                 cancellationToken);
 
-            if (deleteResult.DeletedCount > 0)
+            if (result.DeletedCount > 0)
             {
-                _logger.LogDebug("Cache invalidado para hash: {Hash}", textHash);
+                _logger.LogDebug("Invalidated cache entry for: {TextHash}", GetTextHash(text));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al invalidar cache para texto");
+            _logger.LogError(ex, "Error invalidating cache for text");
         }
     }
 
-    public async Task CleanupExpiredCacheAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Checks if a text has a cached embedding
+    /// </summary>
+    public async Task<bool> ContainsKeyAsync(string text, CancellationToken cancellationToken = default)
     {
         try
         {
-            // MongoDB elimina automáticamente documentos con TTL, pero también podemos hacer limpieza manual
-            var deleteResult = await _cacheCollection.DeleteManyAsync(
-                c => c.ExpirationDate <= DateTime.UtcNow,
-                cancellationToken);
-
-            if (deleteResult.DeletedCount > 0)
+            if (string.IsNullOrWhiteSpace(text))
             {
-                _logger.LogInformation("Limpieza de cache expirado: {DeletedCount} entradas eliminadas", 
-                    deleteResult.DeletedCount);
+                return false;
             }
 
-            // Limpiar cache en memoria
-            _memoryCache.Cleanup();
+            var cacheKey = CalculateCacheKey(text);
+
+            // Check memory first
+            if (_memoryCache.TryGetValue(cacheKey, out _))
+            {
+                return true;
+            }
+
+            // Check MongoDB
+            var count = await _cacheCollection.CountDocumentsAsync(
+                c => c.QueryHash == cacheKey && c.ExpirationDate > DateTime.UtcNow,
+                cancellationToken: cancellationToken);
+
+            return count > 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al limpiar cache expirado");
+            _logger.LogError(ex, "Error checking cache key");
+            return false;
         }
     }
 
-    public async Task<CacheStatistics> GetCacheStatisticsAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Clears all cache entries
+    /// </summary>
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         try
         {
+            // Clear memory cache (Compact(1.0) evicts ~100% of entries; IMemoryCache has no enumeration API)
+            if (_memoryCache is MemoryCache concreteMemoryCache)
+            {
+                concreteMemoryCache.Compact(1.0);
+            }
+
+            // Clear MongoDB cache
+            var result = await _cacheCollection.DeleteManyAsync(_ => true, cancellationToken);
+            _logger.LogInformation("Cleared {Count} cache entries from MongoDB", result.DeletedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error clearing cache");
+        }
+    }
+
+    /// <summary>
+    /// Gets cache statistics
+    /// </summary>
+    public async Task<CacheStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var memoryStats = _stats.GetStatistics();
+
+            // Get MongoDB statistics
             var totalEntries = await _cacheCollection.CountDocumentsAsync(_ => true, cancellationToken: cancellationToken);
             var activeEntries = await _cacheCollection.CountDocumentsAsync(
-                c => c.ExpirationDate > DateTime.UtcNow, 
+                c => c.ExpirationDate > DateTime.UtcNow,
                 cancellationToken: cancellationToken);
             
-            var expiredEntries = totalEntries - activeEntries;
-            
-            var memoryCacheStats = _memoryCache.GetStatistics();
+            // Get memory cache count
+            var memoryCacheCount = GetMemoryCacheCount();
 
-            // Calcular tamaño total aproximado
+            var expiredEntries = totalEntries - activeEntries;
+
+            // Estimate cache size
             var sizeSample = await _cacheCollection
                 .Find(_ => true)
                 .Limit(100)
@@ -221,28 +277,152 @@ public class EmbeddingCacheService : IEmbeddingCache
                 ? sizeSample.Average(e => EstimateSize(e)) 
                 : 0;
 
-            var estimatedTotalSize = avgEntrySize * totalEntries;
-
             return new CacheStatistics
             {
                 TotalEntries = totalEntries,
                 ActiveEntries = activeEntries,
                 ExpiredEntries = expiredEntries,
-                MemoryCacheHits = memoryCacheStats.Hits,
-                MemoryCacheMisses = memoryCacheStats.Misses,
-                MemoryCacheSize = memoryCacheStats.Size,
-                EstimatedTotalSizeBytes = (long)estimatedTotalSize
+                MemoryCacheSize = memoryCacheCount,
+                MemoryCacheHits = memoryStats.Hits,
+                MemoryCacheMisses = memoryStats.Misses,
+                EstimatedTotalSizeBytes = (long)(avgEntrySize * totalEntries)
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al obtener estadísticas del cache");
+            _logger.LogError(ex, "Error getting cache statistics");
             return CacheStatistics.Error;
         }
     }
 
     /// <summary>
-    /// Actualiza estadísticas de uso de una entrada de cache
+    /// Cleans up expired cache entries
+    /// </summary>
+    public async Task CleanupExpiredEntriesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Remove expired entries from MongoDB
+            var result = await _cacheCollection.DeleteManyAsync(
+                c => c.ExpirationDate <= DateTime.UtcNow,
+                cancellationToken);
+
+            if (result.DeletedCount > 0)
+            {
+                _logger.LogInformation("Cleaned up {Count} expired cache entries", result.DeletedCount);
+            }
+
+            // Memory cache handles expiration automatically via IMemoryCache
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cleaning up expired cache entries");
+        }
+    }
+
+    /// <summary>
+    /// Invalidates cache for a specific document
+    /// Called by DocumentProcessor when documents change
+    /// </summary>
+    public async Task InvalidateCacheForDocumentAsync(string documentId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(documentId))
+            {
+                _logger.LogWarning("Empty or whitespace document ID provided for cache invalidation");
+                return;
+            }
+
+            // Invalidate cache entries associated with this document
+            // This requires tracking which queries used chunks from which documents
+            // For now, we'll invalidate based on any cache entry that references this document
+            // In a more advanced implementation, we'd track this explicitly
+            
+            var deleted = await _cacheCollection.DeleteManyAsync(
+                c => c.QueryText.Contains(documentId),
+                cancellationToken);
+
+            if (deleted.DeletedCount > 0)
+            {
+                _logger.LogInformation("Invalidated {Count} cache entries for document {DocumentId}", 
+                    deleted.DeletedCount, documentId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error invalidating cache for document {DocumentId}", documentId);
+        }
+    }
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Calculates a unique cache key for a text query
+    /// </summary>
+    private string CalculateCacheKey(string text)
+    {
+        using var md5 = MD5.Create();
+        var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(text));
+        return Convert.ToBase64String(hashBytes);
+    }
+
+    /// <summary>
+    /// Gets a short hash of text for logging
+    /// </summary>
+    private string GetTextHash(string text)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
+        return Convert.ToHexString(hashBytes).Substring(0, 8);
+    }
+
+    /// <summary>
+    /// Gets the current count of items in memory cache
+    /// Uses reflection to access internal cache count
+    /// </summary>
+    private int GetMemoryCacheCount()
+    {
+        try
+        {
+            var fields = _memoryCache.GetType().GetFields(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            foreach (var field in fields)
+            {
+                if (field.Name == "_traceSource" || field.Name == "_trackGCCollect")
+                    continue;
+                
+                if (field.FieldType.Name.Contains("ConcurrentDictionary"))
+                {
+                    var value = field.GetValue(_memoryCache);
+                    if (value is System.Collections.Concurrent.ConcurrentDictionary<string, object> dict)
+                    {
+                        return dict.Count;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // If we can't get the count, return -1
+        }
+        
+        return -1;
+    }
+
+    /// <summary>
+    /// Estimates the size of a cache entry in bytes
+    /// </summary>
+    private double EstimateSize(EmbeddingCache entry)
+    {
+        var textSize = Encoding.UTF8.GetByteCount(entry.QueryText ?? string.Empty);
+        var embeddingSize = entry.Embedding?.Length ?? 0 * sizeof(float);
+        var metadataSize = 100; // Approximate metadata size
+        
+        return textSize + embeddingSize + metadataSize;
+    }
+
+    /// <summary>
+    /// Updates cache usage statistics in MongoDB
     /// </summary>
     private async Task UpdateCacheUsageAsync(string cacheId, CancellationToken cancellationToken)
     {
@@ -259,185 +439,63 @@ public class EmbeddingCacheService : IEmbeddingCache
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error al actualizar estadísticas de uso del cache");
+            _logger.LogWarning(ex, "Error updating cache usage statistics");
         }
     }
 
-    /// <summary>
-    /// Calcula hash MD5 de un texto
-    /// </summary>
-    private string CalculateHash(string text)
-    {
-        using var md5 = MD5.Create();
-        var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(text));
-        return Convert.ToBase64String(hashBytes);
-    }
+    #endregion
+
+    #region Memory Cache Statistics
 
     /// <summary>
-    /// Estima el tamaño de una entrada de cache
-    /// </summary>
-    private double EstimateSize(EmbeddingCache entry)
-    {
-        var textSize = Encoding.UTF8.GetByteCount(entry.QueryText);
-        var embeddingSize = entry.Embedding.Length * sizeof(float);
-        var metadataSize = 100; // Tamaño aproximado de metadatos
-        
-        return textSize + embeddingSize + metadataSize;
-    }
-
-    /// <summary>
-    /// Cache en memoria para acceso rápido
-    /// </summary>
-    private class MemoryCache
-    {
-        private readonly Dictionary<string, (float[] embedding, DateTime expiration)> _cache = new();
-        private readonly object _lock = new();
-        private int _hits = 0;
-        private int _misses = 0;
-
-        public float[]? Get(string key)
-        {
-            lock (_lock)
-            {
-                if (_cache.TryGetValue(key, out var entry))
-                {
-                    if (entry.expiration > DateTime.UtcNow)
-                    {
-                        _hits++;
-                        return entry.embedding;
-                    }
-                    else
-                    {
-                        _cache.Remove(key);
-                    }
-                }
-                _misses++;
-                return null;
-            }
-        }
-
-        public void Set(string key, float[] embedding, TimeSpan ttl)
-        {
-            lock (_lock)
-            {
-                _cache[key] = (embedding, DateTime.UtcNow.Add(ttl));
-            }
-        }
-
-        public void Remove(string key)
-        {
-            lock (_lock)
-            {
-                _cache.Remove(key);
-            }
-        }
-
-        public void Cleanup()
-        {
-            lock (_lock)
-            {
-                var now = DateTime.UtcNow;
-                var expiredKeys = _cache.Where(kv => kv.Value.expiration <= now).Select(kv => kv.Key).ToList();
-                
-                foreach (var key in expiredKeys)
-                {
-                    _cache.Remove(key);
-                }
-
-                // Limitar tamaño del cache
-                const int maxSize = 1000;
-                if (_cache.Count > maxSize)
-                {
-                    var keysToRemove = _cache
-                        .OrderBy(kv => kv.Value.expiration)
-                        .Take(_cache.Count - maxSize)
-                        .Select(kv => kv.Key)
-                        .ToList();
-
-                    foreach (var key in keysToRemove)
-                    {
-                        _cache.Remove(key);
-                    }
-                }
-            }
-        }
-
-        public MemoryCacheStats GetStatistics()
-        {
-            lock (_lock)
-            {
-                return new MemoryCacheStats
-                {
-                    Size = _cache.Count,
-                    Hits = _hits,
-                    Misses = _misses,
-                    HitRatio = _hits + _misses > 0 ? (double)_hits / (_hits + _misses) : 0
-                };
-            }
-        }
-    }
-
-    /// <summary>
-    /// Estadísticas del cache en memoria
+    /// Thread-safe statistics tracker for memory cache
     /// </summary>
     private class MemoryCacheStats
     {
-        public int Size { get; set; }
-        public int Hits { get; set; }
-        public int Misses { get; set; }
-        public double HitRatio { get; set; }
-    }
-}
+        private int _hits = 0;
+        private int _misses = 0;
+        private readonly object _lock = new();
 
-/// <summary>
-/// Estadísticas del cache
-/// </summary>
-public class CacheStatistics
-{
-    public long TotalEntries { get; set; }
-    public long ActiveEntries { get; set; }
-    public long ExpiredEntries { get; set; }
-    public int MemoryCacheHits { get; set; }
-    public int MemoryCacheMisses { get; set; }
-    public int MemoryCacheSize { get; set; }
-    public long EstimatedTotalSizeBytes { get; set; }
-
-    public double HitRatio => MemoryCacheHits + MemoryCacheMisses > 0 
-        ? (double)MemoryCacheHits / (MemoryCacheHits + MemoryCacheMisses) 
-        : 0;
-
-    public string EstimatedTotalSize => FormatBytes(EstimatedTotalSizeBytes);
-
-    private static string FormatBytes(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-        
-        while (len >= 1024 && order < sizes.Length - 1)
+        public void RecordHit()
         {
-            order++;
-            len /= 1024;
+            lock (_lock)
+            {
+                _hits++;
+            }
         }
-        
-        return $"{len:0.##} {sizes[order]}";
+
+        public void RecordMiss()
+        {
+            lock (_lock)
+            {
+                _misses++;
+            }
+        }
+
+        public (int Hits, int Misses, double HitRatio) GetStatistics()
+        {
+            lock (_lock)
+            {
+                var total = _hits + _misses;
+                var hitRatio = total > 0 ? (double)_hits / total : 0.0;
+                return (_hits, _misses, hitRatio);
+            }
+        }
+
+        public int TotalHits => _hits;
+        public int TotalMisses => _misses;
+        public double HitRatio
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    var total = _hits + _misses;
+                    return total > 0 ? (double)_hits / total : 0.0;
+                }
+            }
+        }
     }
 
-    public static CacheStatistics Error => new CacheStatistics
-    {
-        TotalEntries = -1,
-        ActiveEntries = -1,
-        ExpiredEntries = -1,
-        MemoryCacheHits = -1,
-        MemoryCacheMisses = -1,
-        MemoryCacheSize = -1,
-        EstimatedTotalSizeBytes = -1
-    };
-
-    public override string ToString()
-    {
-        return $"Total: {TotalEntries}, Activos: {ActiveEntries}, Expirados: {ExpiredEntries}, " +
-               $"Memoria: {MemoryCacheSize} entradas, Hit Ratio: {HitRatio:P2}, " +
-               $"Tamaño estimado: {EstimatedTotalSize}";
-    }
+    #endregion
 }

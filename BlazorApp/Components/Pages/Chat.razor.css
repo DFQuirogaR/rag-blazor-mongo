@@ -357,6 +357,9 @@
 .input-wrapper {
     position: relative;
     margin-bottom: 12px;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
 }
 
 .message-input {
@@ -364,7 +367,6 @@
     min-height: 56px;
     max-height: 200px;
     padding: 16px 20px;
-    padding-right: 120px;
     border: 2px solid #e2e8f0;
     border-radius: 16px;
     font-size: 1rem;
@@ -373,6 +375,7 @@
     transition: all 0.3s ease;
     background: white;
     color: #2d3748;
+    flex: 1;
 }
 
 .message-input:focus {
@@ -392,9 +395,9 @@
 }
 
 .input-actions {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .btn-send {

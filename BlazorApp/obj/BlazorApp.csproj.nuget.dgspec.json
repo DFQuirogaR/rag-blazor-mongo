@@ -50,6 +50,10 @@
               "target": "Package",
               "version": "[3.1.0, )"
             },
+            "Markdig": {
+              "target": "Package",
+              "version": "[0.38.0, )"
+            },
             "Microsoft.AspNetCore.App.Internal.Assets": {
               "suppressParent": "All",
               "target": "Package",
@@ -71,6 +75,18 @@
             "MongoDB.Driver": {
               "target": "Package",
               "version": "[2.30.0, )"
+            },
+            "Serilog.AspNetCore": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Serilog.Sinks.Console": {
+              "target": "Package",
+              "version": "[5.0.1, )"
+            },
+            "Serilog.Sinks.File": {
+              "target": "Package",
+              "version": "[6.0.0, )"
             },
             "itext7": {
               "target": "Package",

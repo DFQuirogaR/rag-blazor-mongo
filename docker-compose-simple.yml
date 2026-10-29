@@ -1,0 +1,40 @@
+services:
+  # Base de datos vectorial
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb_rag
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=RagDatabase
+
+  # Servidor LLM Local
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_rag
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  # Aplicación Blazor Web (C# .NET)
+  blazor-app:
+    build:
+      context: ./BlazorApp
+      dockerfile: Dockerfile
+    container_name: blazor_rag_app
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__MongoDb=mongodb://mongodb:27017/RagDatabase
+      - Ollama__Endpoint=http://ollama:11434
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - mongodb
+      - ollama
+
+volumes:
+  mongo_data:
+  ollama_data:

@@ -1,0 +1,165 @@
+services:
+  # ==========================================
+  # Base de datos vectorial (MongoDB 7.0+)
+  # ==========================================
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb_rag
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./setup-mongodb-optimized.js:/docker-entrypoint-initdb.d/setup.js:ro
+    environment:
+      - MONGO_INITDB_DATABASE=RagDatabase
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # ==========================================
+  # Servidor LLM Local (Ollama)
+  # ==========================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_rag
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama-init:/opt/ollama-init:ro
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_MODELS=/root/.ollama/models
+    # Descomenta las siguientes líneas si tienes tarjeta gráfica Nvidia asignada a Docker:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # ==========================================
+  # Inicialización de modelos de Ollama
+  # ==========================================
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama_init
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama-init:/opt/ollama-init:ro
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      echo '=== Inicializando Ollama ===';
+      echo 'Esperando a Ollama...';
+      sleep 15;
+      echo 'Verificando versión de Ollama...';
+      ollama --version || { echo 'Error: Ollama CLI no está disponible'; exit 1; };
+      echo '=== Ejecutando inicialización de modelos ===';
+      if [ -f /opt/ollama-init/entrypoint.sh ]; then
+        sh /opt/ollama-init/entrypoint.sh;
+      else
+        echo 'No se encontró entrypoint.sh';
+        exit 1;
+      fi;
+      echo '=== Inicialización de Ollama completada ===';
+      "
+    networks:
+      - rag-network
+
+  # ==========================================
+  # Aplicación Blazor Web (C# .NET)
+  # ==========================================
+  blazor-app:
+    build:
+      context: ./BlazorApp
+      dockerfile: Dockerfile
+      args:
+        - ASPNETCORE_ENVIRONMENT=Production
+    container_name: blazor_rag_app
+    ports:
+      - "8080:8080"
+    volumes:
+      # Usa ./documents por defecto. También puede configurarse DOCUMENTS_PATH en .env.
+      - ${DOCUMENTS_PATH:-./documents}:/app/documents:ro
+    environment:
+      - ConnectionStrings__MongoDb=mongodb://mongodb:27017/RagDatabase
+      - Ollama__Endpoint=http://ollama:11434
+      - DocumentSettings__ScanPaths__0=/app/documents
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # ==========================================
+  # Servicio de Backup (opcional)
+  # ==========================================
+  backup:
+    image: mongo:7.0
+    container_name: mongodb_backup
+    volumes:
+      - mongo_data:/data/db:ro
+      - ./backups:/backups
+    environment:
+      - BACKUP_SCHEDULE=@daily
+      - MONGO_DATABASE=RagDatabase
+    entrypoint: >
+      /bin/sh -c "
+      echo '=== Inicializando Backup ===';
+      mkdir -p /backups/$(date +%Y%m%d);
+      mongodump --host mongodb --db RagDatabase --out /backups/$(date +%Y%m%d) || true;
+      echo '=== Backup completado ===';
+      while true; do
+        sleep 86400; # 24 horas
+        mkdir -p /backups/$(date +%Y%m%d_%H%M%S);
+        mongodump --host mongodb --db RagDatabase --out /backups/$(date +%Y%m%d_%H%M%S) || true;
+      done
+      "
+    networks:
+      - rag-network
+
+volumes:
+  mongo_data:
+    driver: local
+  ollama_data:
+    driver: local
+  documents_data:
+    driver: local
+
+networks:
+  rag-network:
+    driver: bridge

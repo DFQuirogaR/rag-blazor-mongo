@@ -314,6 +314,66 @@ function initializeChatFeatures() {
     console.log('Funciones de chat inicializadas correctamente');
 }
 
+// Copy Markdown to clipboard
+async function copyMarkdownToClipboard(element) {
+    try {
+        if (element && element.domElement) {
+            const text = element.domElement.innerText || element.domElement.textContent;
+            await navigator.clipboard.writeText(text);
+            console.log('Markdown copied to clipboard');
+        }
+    } catch (err) {
+        console.error('Error copying Markdown:', err);
+    }
+}
+
+// Print Markdown content
+async function printMarkdownContent(element) {
+    try {
+        if (element && element.domElement) {
+            const printContent = element.domElement.innerHTML;
+            const printWindow = window.open('', '_blank');
+            
+            if (printWindow) {
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Imprimir contenido</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+                            h1, h2, h3 { color: #2d3748; }
+                            code { background: #f7fafc; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+                            pre { background: #2d3748; color: #f7fafc; padding: 16px; border-radius: 8px; overflow-x: auto; }
+                            blockquote { border-left: 4px solid #4299e1; margin: 0; padding-left: 16px; color: #718096; }
+                            table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+                            th, td { border: 1px solid #cbd5e0; padding: 8px 12px; text-align: left; }
+                            th { background: #edf2f7; font-weight: bold; }
+                            ul, ol { margin: 16px 0; padding-left: 24px; }
+                            li { margin: 4px 0; }
+                        </style>
+                    </head>
+                    <body>
+                        ${printContent}
+                        <script>
+                            window.onload = function() {
+                                window.print();
+                                window.onafterprint = function() {
+                                    window.close();
+                                };
+                            };
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+        }
+    } catch (err) {
+        console.error('Error printing Markdown:', err);
+    }
+}
+
 // Exportar funciones al scope global
 window.chatFunctions = {
     scrollToBottom,
@@ -324,6 +384,11 @@ window.chatFunctions = {
     showNotification,
     animateNewMessage,
     initializeChatFeatures
+};
+
+window.markdownRenderer = {
+    copyMarkdownToClipboard,
+    printMarkdownContent
 };
 
 // Inicializar cuando el DOM esté listo

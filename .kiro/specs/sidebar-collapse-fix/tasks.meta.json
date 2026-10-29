@@ -1,0 +1,158 @@
+{
+  "pbtResults": {
+    "3.4 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "failingExample": "CSS fix verified: width changes from 250px to 70px when collapsed class is applied, with smooth 300ms transition",
+      "lastRunTimestamp": 1793044791037
+    },
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "lastRunTimestamp": 1793045192963
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351025
+      },
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038355749
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044972936
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793045214831
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351183
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793045222052
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793045902606
+      }
+    ],
+    "3.1 Update NavMenu.razor.css with base width rule and transition property": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351271
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044510533
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044609987
+      }
+    ],
+    "3.2 Clean up duplicate and commented CSS code": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351353
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044612811
+      }
+    ],
+    "3.3 Verify MainLayout.razor allows sidebar to adapt": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351485
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044623476
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044669912
+      }
+    ],
+    "3.4 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351548
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044672761
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044801160
+      }
+    ],
+    "3.5 Verify preservation tests still pass": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351617
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044803863
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044958090
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "3151d9a3-c6af-4595-ac94-fd4085f09e44",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793038351686
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044963418
+      },
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044969479
+      }
+    ],
+    "3. Fix for sidebar visual update on toggle": [
+      {
+        "executionId": "9424cd80-366b-4619-93af-018cbc1924aa",
+        "chatSessionId": "sess_103b8fa2-6de6-4b04-b2f5-006bb5adb580",
+        "timestamp": 1793044958254
+      }
+    ]
+  }
+}

@@ -1,0 +1,276 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Configurar MongoDB Optimizado para RAG": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217834296
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217845153
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793218384875
+      }
+    ],
+    "1.2 Implementar ITextExtractor para Word/PDF": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217834805
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793218394110
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793218626821
+      }
+    ],
+    "1.3 Crear modelos de datos para MongoDB": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217835217
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793218635848
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793218781085
+      }
+    ],
+    "2.1 Implementar DocumentProcessor": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217835576
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793218787943
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793219084515
+      }
+    ],
+    "2.2 Configurar sistema de escaneo de carpetas": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217835839
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793219093333
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793219658151
+      }
+    ],
+    "2.3 Implementar DocumentManagementService": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217836237
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793219667803
+      }
+    ],
+    "3.1 Mejorar RagService con b�squeda real": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217836508
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793220050529
+      }
+    ],
+    "3.2 Implementar cache de embeddings": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217836923
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793220357835
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793221048255
+      }
+    ],
+    "3.3 Configurar �ndices vectoriales": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217837193
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793221059274
+      }
+    ],
+    "4.1 Redise�ar p�gina /chat": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217837415
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793221103398
+      }
+    ],
+    "4.2 Implementar ChatService con estado": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217837632
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793221120327
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793221510079
+      }
+    ],
+    "4.3 Formateador de respuestas con Markdown": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217837868
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793221517746
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793222061896
+      }
+    ],
+    "5.1 Integrar componentes principales": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217838079
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793222074540
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793222412756
+      }
+    ],
+    "5.2 Implementar pruebas de integraci�n": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217838303
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793222420041
+      }
+    ],
+    "5.3 Configurar logging y monitoreo": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217838611
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793222450297
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793223603176
+      }
+    ],
+    "6.1 Actualizar Docker Compose": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217838916
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793223624700
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793223874595
+      }
+    ],
+    "6.2 Crear documentaci�n t�cnica": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217839441
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793223900120
+      }
+    ],
+    "6.3 Crear gu�a de usuario": [
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793217839763
+      },
+      {
+        "executionId": "7682486a-9a44-4f8f-acf7-c48ce2abf028",
+        "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
+        "timestamp": 1793223923883
+      }
+    ]
+  }
+}
