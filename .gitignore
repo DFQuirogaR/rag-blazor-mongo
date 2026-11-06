@@ -55,3 +55,6 @@ project.assets.json
 
 # Logs
 *.log
+
+# Backups locales
+backups/
