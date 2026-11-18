@@ -1,15 +1,69 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="app-shell">
+    <header class="app-banner">
+        <div class="app-brand">
+            <button class="app-brand-mark app-brand-toggle"
+                    @onclick="ToggleSidebar"
+                    aria-label="@(sidebarCollapsed ? "Mostrar menú lateral" : "Ocultar menú lateral")"
+                    title="@(sidebarCollapsed ? "Mostrar menú lateral" : "Ocultar menú lateral")">
+                <i class="bi bi-list"></i>
+            </button>
+            <div>
+                <strong>Plataforma Inteligente</strong>
+                <span>de Conocimiento Operacional</span>
+            </div>
+        </div>
 
-    <main>
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+        <div class="banner-actions">
+            <div class="language-selector">
+                <button class="language-button"
+                        @onclick="ToggleLanguageMenu"
+                        aria-expanded="@languageMenuOpen"
+                        aria-haspopup="true">
+                    <i class="bi bi-globe2"></i>
+                    <span>@selectedLanguage</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+
+                @if (languageMenuOpen)
+                {
+                    <div class="language-menu" role="menu">
+                        <div class="language-menu-title">Idioma / Language</div>
+                        @foreach (var language in languages)
+                        {
+                            <button class="language-option @(selectedLanguage == language.Name ? "selected" : "")"
+                                    @onclick="() => SelectLanguage(language.Name)"
+                                    role="menuitem">
+                                <span class="language-code">@language.Code</span>
+                                <span>@language.Name</span>
+                                @if (selectedLanguage == language.Name)
+                                {
+                                    <i class="bi bi-check-circle-fill"></i>
+                                }
+                            </button>
+                        }
+                        <div class="language-menu-footer">
+                            <i class="bi bi-gear"></i>
+                            <span>Configurar más idiomas</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </header>
+
+    <div class="page">
+        <div class="sidebar @(sidebarCollapsed ? "sidebar-collapsed" : "")">
+            <NavMenu Collapsed="@sidebarCollapsed" />
+        </div>
+
+        <main>
+            <article class="content">
+                @Body
+            </article>
+        </main>
+    </div>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -19,3 +73,34 @@
 </div>
 
 <ReconnectModal />
+
+@code {
+    private bool sidebarCollapsed;
+    private bool languageMenuOpen;
+    private string selectedLanguage = "Español";
+
+    private readonly LanguageOption[] languages =
+    [
+        new("ES", "Español"),
+        new("PT", "Português"),
+        new("EN", "English")
+    ];
+
+    private void ToggleSidebar()
+    {
+        sidebarCollapsed = !sidebarCollapsed;
+    }
+
+    private void ToggleLanguageMenu()
+    {
+        languageMenuOpen = !languageMenuOpen;
+    }
+
+    private void SelectLanguage(string language)
+    {
+        selectedLanguage = language;
+        languageMenuOpen = false;
+    }
+
+    private sealed record LanguageOption(string Code, string Name);
+}

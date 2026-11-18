@@ -317,60 +317,13 @@ function initializeChatFeatures() {
 // Copy Markdown to clipboard
 async function copyMarkdownToClipboard(element) {
     try {
-        if (element && element.domElement) {
-            const text = element.domElement.innerText || element.domElement.textContent;
-            await navigator.clipboard.writeText(text);
-            console.log('Markdown copied to clipboard');
-        }
+        const text = element?.innerText || element?.textContent;
+        if (!text || !navigator.clipboard) return false;
+        await navigator.clipboard.writeText(text);
+        return true;
     } catch (err) {
         console.error('Error copying Markdown:', err);
-    }
-}
-
-// Print Markdown content
-async function printMarkdownContent(element) {
-    try {
-        if (element && element.domElement) {
-            const printContent = element.domElement.innerHTML;
-            const printWindow = window.open('', '_blank');
-            
-            if (printWindow) {
-                printWindow.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>Imprimir contenido</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
-                            h1, h2, h3 { color: #2d3748; }
-                            code { background: #f7fafc; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-                            pre { background: #2d3748; color: #f7fafc; padding: 16px; border-radius: 8px; overflow-x: auto; }
-                            blockquote { border-left: 4px solid #4299e1; margin: 0; padding-left: 16px; color: #718096; }
-                            table { border-collapse: collapse; width: 100%; margin: 16px 0; }
-                            th, td { border: 1px solid #cbd5e0; padding: 8px 12px; text-align: left; }
-                            th { background: #edf2f7; font-weight: bold; }
-                            ul, ol { margin: 16px 0; padding-left: 24px; }
-                            li { margin: 4px 0; }
-                        </style>
-                    </head>
-                    <body>
-                        ${printContent}
-                        <script>
-                            window.onload = function() {
-                                window.print();
-                                window.onafterprint = function() {
-                                    window.close();
-                                };
-                            };
-                        <\/script>
-                    </body>
-                    </html>
-                `);
-                printWindow.document.close();
-            }
-        }
-    } catch (err) {
-        console.error('Error printing Markdown:', err);
+        return false;
     }
 }
 
@@ -387,8 +340,7 @@ window.chatFunctions = {
 };
 
 window.markdownRenderer = {
-    copyMarkdownToClipboard,
-    printMarkdownContent
+    copyMarkdownToClipboard
 };
 
 // Inicializar cuando el DOM esté listo
@@ -396,4 +348,52 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeChatFeatures);
 } else {
     initializeChatFeatures();
+}
+
+// Redimensionado de columnas de las tablas administrativas
+function startTableResize(event, handle) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const header = handle.closest('th');
+    const table = header?.closest('table');
+    if (!header || !table) return;
+
+    const startX = event.clientX;
+    const startWidth = header.getBoundingClientRect().width;
+    const columnIndex = header.cellIndex;
+    const rows = Array.from(table.querySelectorAll('tr'));
+    const minimumWidth = 90;
+
+    table.style.tableLayout = 'fixed';
+    const initialTableWidth = table.getBoundingClientRect().width;
+    const requiredWidth = Math.max(initialTableWidth, table.scrollWidth);
+    table.style.width = `${requiredWidth}px`;
+
+    const setColumnWidth = width => {
+        const safeWidth = Math.max(minimumWidth, width);
+        rows.forEach(row => {
+            const cell = row.cells[columnIndex];
+            if (cell) cell.style.width = `${safeWidth}px`;
+        });
+    };
+
+    const onMove = moveEvent => {
+        const delta = moveEvent.clientX - startX;
+        const nextTableWidth = Math.max(initialTableWidth, initialTableWidth + Math.max(delta, 0));
+        table.style.width = `${nextTableWidth}px`;
+        setColumnWidth(startWidth + delta);
+    };
+
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
 }

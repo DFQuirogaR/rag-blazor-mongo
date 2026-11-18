@@ -897,3 +897,18 @@
         font-size: 0.75rem;
     }
 }
+
+/* Redimensionado manual de columnas */
+.resizable-table { min-width: 860px; table-layout: fixed; }
+.resizable-table th { position: relative; overflow: visible; white-space: nowrap; }
+.resizable-table td { overflow: hidden; text-overflow: ellipsis; }
+.column-resizer { position: absolute; top: 0; right: -4px; z-index: 2; width: 9px; height: 100%; cursor: col-resize; border-right: 2px solid transparent; transition: border-color .15s ease; }
+.column-resizer:hover, .column-resizer:active { border-right-color: #667eea; }
+.table-wrapper { padding-bottom: 2px; }
+@media (max-width: 768px) { .resizable-table { min-width: 780px; }.column-resizer { width: 12px; right: -6px; } }
+
+/* Mostrar nombres completos en la tabla redimensionable */
+.resizable-table td { overflow: visible; text-overflow: clip; }
+.resizable-table .file-name-cell { min-width: 0; align-items: flex-start; }
+.resizable-table .file-name { max-width: none; overflow: visible; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }
+.resizable-table th:first-child { min-width: 220px; }

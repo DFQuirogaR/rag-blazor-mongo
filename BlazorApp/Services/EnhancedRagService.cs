@@ -352,7 +352,9 @@ CONTEXTO:
                 
                 if (docModel != null)
                 {
-                    formattedResponse.AppendLine($"📄 **{docModel.FileName}**");
+                    var documentTitle = docModel.DocumentMetadata?.Title?.Trim();
+                    var documentName = string.IsNullOrWhiteSpace(documentTitle) ? docModel.FileName : documentTitle;
+                    formattedResponse.AppendLine($"📄 **{documentName}**");
                     formattedResponse.AppendLine($"   - **Similitud:** {docGroup.Score:F2}");
                     formattedResponse.AppendLine($"   - **Fragmentos:** {docGroup.Chunks.Count}");
                     

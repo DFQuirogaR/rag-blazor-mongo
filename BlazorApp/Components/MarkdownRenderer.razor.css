@@ -447,3 +447,5 @@
         color: #f7fafc;
     }
 }
+
+.message-actions .btn-copy.copied { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }

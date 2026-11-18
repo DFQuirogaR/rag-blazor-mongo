@@ -61,7 +61,7 @@ public class RagService
             var response = await GenerateResponseAsync(userQuery, context);
 
             // 5. Format response with sources
-            var formattedResponse = FormatResponseWithSources(response, relevantChunks);
+            var formattedResponse = await FormatResponseWithSources(response, relevantChunks);
 
             _logger.LogInformation("Successfully generated RAG response");
             return formattedResponse;
@@ -192,7 +192,7 @@ CONTEXTO:
         }
     }
 
-    private string FormatResponseWithSources(string response, List<ChunkModel> chunks)
+    private async Task<string> FormatResponseWithSources(string response, List<ChunkModel> chunks)
     {
         var formattedResponse = new StringBuilder();
         formattedResponse.AppendLine(response);
@@ -201,16 +201,29 @@ CONTEXTO:
         formattedResponse.AppendLine();
         formattedResponse.AppendLine("**Fuentes consultadas:**");
 
-        // Get unique document IDs from chunks
-        var documentIds = chunks.Select(c => c.DocumentId).Distinct();
-        
+        var documentIds = chunks.Select(c => c.DocumentId).Distinct().ToList();
+        var documents = await DocumentsCollection
+            .Find(d => documentIds.Contains(d.Id!))
+            .ToListAsync();
+        var documentDict = documents.ToDictionary(d => d.Id!, d => d);
+
         foreach (var docId in documentIds)
         {
             var chunksFromDoc = chunks.Where(c => c.DocumentId == docId).ToList();
-            if (chunksFromDoc.Any())
+            if (chunksFromDoc.Count == 0)
             {
-                formattedResponse.AppendLine($"- Documento: {docId} ({chunksFromDoc.Count} fragmentos)");
+                continue;
             }
+
+            var documentName = documentDict.TryGetValue(docId, out var document)
+                ? document.DocumentMetadata?.Title?.Trim()
+                : null;
+            documentName = string.IsNullOrWhiteSpace(documentName)
+                ? (document?.FileName?.Trim() ?? string.Empty)
+                : documentName;
+            documentName = string.IsNullOrWhiteSpace(documentName) ? docId : documentName;
+
+            formattedResponse.AppendLine($"- Documento: {documentName} ({chunksFromDoc.Count} fragmentos)");
         }
 
         return formattedResponse.ToString();

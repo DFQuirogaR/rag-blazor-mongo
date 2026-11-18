@@ -1,423 +1,166 @@
-# Diseño del Sistema RAG Funcional
+# Diseño del sistema RAG funcional
 
-## Arquitectura del Sistema
+**Última sincronización:** 2026-11-13
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Componentes del Sistema              │
-├─────────────────────────────────────────────────────────┤
-│  Frontend (Blazor Server) │   Backend (C# .NET10)        │
-│  ┌──────────────────────┐   ┌──────────────────────┐  │
-│  │  Chat UI Moderna     │   │  RagService mejorado  │  │
-│  │  • Enter para enviar  │   │  • Búsqueda vectorial│  │
-│  │  • Cajas redondeadas  │   │  • Gestión de context │  │
-│  └──────────────────────┘   └──────────────────────┘  │
-│                           │                            │
-├─────────────────────────────────────────────────────────┤
-│               Procesamiento de Documentos               │
-│  ┌──────────────────────┐   ┌──────────────────────┐  │
-│  │  DocumentProcessor  │   │  TextExtractor       │  │
-│  │  • Chunking          │   │  • Word (.docx)     │  │
-│  │  • Embedding         │   │  • PDF               │  │
-│  └──────────────────────┘   └──────────────────────┘  │
-│                           │                            │
-├─────────────────────────────────────────────────────────┤
-│                 Almacenamiento                          │
-│  ┌──────────────────────┐   ┌──────────────────────┐  │
-│  │  MongoDB            │   │  FileSystem           │  │
-│  │  • Chunks           │   │  • Documentos fuente   │  │
-│  │  • Embeddings      │   │  • Metadata          │  │
-│  │  • Metadata        │   └──────────────────────┘  │
-│  └──────────────────────┘                             │
-│                           │                            │
-├─────────────────────────────────────────────────────────┤
-│                 Infraestructura                        │
-│  ┌──────────────────────┐   ┌──────────────────────┐  │
-│  │  Ollama             │   │  Docker Compose      │  │
-│  │  • LLM             │   │  • MongoDB           │  │
-│  │  • Embeddings     │   │  • Ollama            │  │
-│  └──────────────────────┘   │  • Blazor App       │  │
-│                           └──────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+## Estado del diseño
+
+Este documento distingue la arquitectura que existe en el repositorio de las capacidades que todavía son objetivo de la fase 2. La documentación anterior describía `EnhancedRagService` como el camino principal, pero la página real `/chat` usa `RagService`.
+
+## Arquitectura implementada
+
+```text
+DocumentSettings:ScanPaths
+          |
+          v
+  DocumentScanner (hosted service)
+          |
+          v
+  DocumentProcessor
+     |       |        |
+     |       |        +--> IEmbeddingCache / EmbeddingCacheService
+     |       +-----------> DocumentChunker
+     +-------------------> ITextExtractor
+                              |--> WordTextExtractor (.docx)
+                              +--> PdfTextExtractor (.pdf)
+          |
+          v
+        MongoDB
+   documents / chunks / embedding_cache
+
+Blazor /chat
+     |
+     v
+ Chat.razor --> RagService --> MongoDB chunks --> similitud coseno en memoria
+                       |
+                       +--> Ollama embeddings y respuesta
+
+Ruta disponible pero no conectada a /chat:
+ RagOrchestrator --> EnhancedRagService + ResponseFormatter + sesiones
 ```
 
-## Diseño de Base de Datos
+### Composición y dependencias
 
-### Colección `documents`
-```json
-{
-  "_id": ObjectId,
-  "file_path": "string",
-  "file_name": "string",
-  "file_type": "docx|pdf",
-  "file_size": number,
-  "content_hash": "string",
-  "processed_at": ISODate,
-  "metadata": {
-    "title": "string",
-    "author": "string",
-    "created_date": ISODate,
-    "modified_date": ISODate,
-    "page_count": number
-  },
-  "processing_status": "pending|processing|completed|error",
-  "error_message": "string"
-}
-```
+`BlazorApp/Program.cs` registra MongoDB, los servicios de Ollama, los extractores, `DocumentProcessor`, `EnhancedRagService`, `ResponseFormatter`, `IEmbeddingCache`, `RagOrchestrator`, `ChatSessionService`, `DocumentScanner` y `RagService`.
 
-### Colección `chunks`
-```json
-{
-  "_id": ObjectId,
-  "document_id": ObjectId,
-  "chunk_index": number,
-  "start_char": number,
-  "end_char": number,
-  "content": "string",
-  "embedding": [number], // vector de embeddings
-  "metadata": {
-    "page_number": number,
-    "section_title": "string",
-    "is_heading": boolean
-  },
-  "created_at": ISODate
-}
-```
+La página `BlazorApp/Components/Pages/Chat.razor` inyecta únicamente `RagService` y `ILogger<Chat>`. Por ello, la integración de sesiones, reranking y formateo avanzado no se puede considerar parte del flujo activo de `/chat`.
 
-### Índices
-- **Vectorial**: `chunks.embedding` (índice vectorial para búsqueda)
-- **Búsqueda texto**: `chunks.content` (text index)
-- **Documento origen**: `chunks.document_id`
-- **Timestamp**: `documents.processed_at`
+## Procesamiento de documentos
 
-## Diseño de UI (/chat)
+1. `DocumentScanner` obtiene las rutas configuradas y localiza archivos compatibles.
+2. `ITextExtractor` selecciona `WordTextExtractor` o `PdfTextExtractor`.
+3. `DocumentProcessor` calcula el hash SHA-256 y evita reprocesar archivos sin cambios.
+4. `DocumentChunker` divide el contenido respetando párrafos, headings, páginas y secciones.
+5. Se genera un embedding por chunk mediante Ollama.
+6. El documento y sus chunks se guardan en MongoDB.
+7. Al cambiar un documento, se reemplazan sus chunks y se registra el estado del procesamiento.
 
-### Layout
-```html
-<div class="chat-container">
-  <!-- Header -->
-  <div class="chat-header">
-    <h3>Asistente RAG - Procesos Datacenter</h3>
-  </div>
-  
-  <!-- Historial de mensajes -->
-  <div class="chat-history">
-    <!-- Mensajes del usuario -->
-    <div class="message user">
-      <div class="bubble">¿Cuál es el proceso para X?</div>
-    </div>
-    
-    <!-- Respuestas del sistema -->
-    <div class="message assistant">
-      <div class="bubble rounded-box">
-        <p><strong>Paso 1:</strong> Descripción del paso...</p>
-        <p><strong>Paso 2:</strong> Descripción del paso...</p>
-        <small class="source-info">Fuente: documento.docx, página 5</small>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Input area -->
-  <div class="input-area">
-    <input type="text" 
-           @bind="userQuery" 
-           @bind:event="oninput"
-           @onkeypress="HandleKeyPress"
-           placeholder="Pregunta sobre procesos del datacenter..." 
-           class="chat-input" />
-    <button @onclick="AskRag" class="send-button">
-      <i class="bi bi-send"></i>
-    </button>
-  </div>
-  
-  <!-- Indicador de estado -->
-  <div class="status-indicator" @if="isProcessing">
-    <div class="typing-animation">Procesando...</div>
-  </div>
-</div>
-```
+El tamaño usado actualmente es 1000 caracteres con 200 caracteres de solapamiento. El diseño anterior mostraba 1500 caracteres, por lo que ese valor ya no representa la implementación real.
 
-### Componentes de CSS
-```css
-/* Chat container */
-.chat-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
-}
+## Modelo de datos actual
 
-/* Mensajes */
-.message {
-  margin-bottom: 20px;
-}
+Los modelos C# principales son `DocumentModel`, `ChunkModel`, `EmbeddingResult`, `ChatSession` y `ChatMessage`.
 
-.message.user {
-  text-align: right;
-}
+### `documents`
 
-.message.assistant {
-  text-align: left;
-}
+El modelo de documento conserva, como mínimo:
 
-/* Burbujas de chat */
-.bubble {
-  display: inline-block;
-  padding: 12px 18px;
-  max-width: 80%;
-  word-wrap: break-word;
-}
+- Identificador MongoDB.
+- Ruta y nombre del archivo.
+- Tipo y tamaño.
+- Hash del contenido.
+- Fechas de procesamiento y modificación cuando están disponibles.
+- Estado de procesamiento y mensaje de error.
+- Metadatos extraídos del documento.
 
-.user .bubble {
-  background: #007bff;
-  color: white;
-  border-radius: 18px 18px 4px 18px;
-}
+### `chunks`
 
-.assistant .bubble {
-  background: #f8f9fa;
-  color: #212529;
-  border: 2px solid #dee2e6;
-  border-radius: 18px 18px 18px 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
+El modelo de chunk conserva, como mínimo:
 
-/* Caja redondeada para respuestas */
-.rounded-box {
-  border-radius: 15px;
-  border: 2px solid #6c757d;
-  padding: 16px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
+- Identificador del documento de origen.
+- Índice del chunk.
+- Posición inicial y final.
+- Texto del chunk.
+- Embedding numérico.
+- Página, sección y metadatos de extracción cuando están disponibles.
+- Fecha de creación.
 
-/* Input area */
-.input-area {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
+Los modelos usan atributos BSON y validaciones. Los scripts de MongoDB contienen nombres legacy en algunos pasos y nombres derivados de propiedades C# en otros; esa diferencia debe resolverse en una futura tarea de esquema, no asumirse como un contrato único.
 
-.chat-input {
-  flex: 1;
-  padding: 12px 16px;
-  border: 2px solid #6c757d;
-  border-radius: 25px;
-  font-size: 16px;
-  transition: border-color 0.3s;
-}
+## MongoDB e índices
 
-.chat-input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
-}
+Los scripts relevantes son:
 
-.send-button {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: background 0.3s;
-}
+- `setup-mongodb-optimized.js`.
+- `mongo-schema-migration.js`.
+- `setup-mongodb.js`.
+- `verify-mongodb-setup.js`.
 
-.send-button:hover {
-  background: #0056b3;
-}
+Hay definiciones para índices de texto, compuestos y vectoriales. No hay evidencia verificable de que el índice vectorial esté activo en la instancia actual. El script optimizado también aclara que la definición de un índice vectorial de Atlas no equivale necesariamente a `createIndex` estándar.
 
-/* Indicador de estado */
-.status-indicator {
-  text-align: center;
-  padding: 10px;
-  color: #6c757d;
-}
+La búsqueda que usa `/chat` no consume un índice vectorial. Carga los chunks y calcula similitud coseno en memoria. Por tanto, el soporte de índices queda documentado como capacidad preparada, no como parte del flujo comprobado.
 
-.typing-animation::after {
-  content: '...';
-  animation: typing 1.5s infinite;
-}
+## Servicios RAG
 
-@keyframes typing {
-  0% { content: '.'; }
-  33% { content: '..'; }
-  66% { content: '...'; }
-  100% { content: '.'; }
-}
+### `RagService` activo
 
-/* Información de fuente */
-.source-info {
-  display: block;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #6c757d;
-  font-style: italic;
-}
-```
+`BlazorApp/Services/RagService.cs`:
 
-## Diseño de Clases C#
+1. Genera el embedding de la consulta.
+2. Obtiene los chunks disponibles.
+3. Calcula similitud coseno en memoria.
+4. Selecciona los resultados superiores.
+5. Construye el contexto y solicita una respuesta a Ollama.
+6. Devuelve texto que puede incluir referencias básicas a documentos.
 
-### DocumentProcessor
-```csharp
-public class DocumentProcessor
-{
-    private readonly ITextExtractor _textExtractor;
-    private readonly ITextEmbeddingGenerationService _embeddingService;
-    private readonly IMongoDatabase _database;
-    
-    public DocumentProcessor(
-        ITextExtractor textExtractor,
-        ITextEmbeddingGenerationService embeddingService,
-        IMongoDatabase database)
-    {
-        _textExtractor = textExtractor;
-        _embeddingService = embeddingService;
-        _database = database;
-    }
-    
-    public async Task ProcessDocumentAsync(string filePath)
-    {
-        // 1. Extraer texto del documento
-        var documentContent = await _textExtractor.ExtractTextAsync(filePath);
-        
-        // 2. Crear documento en DB
-        var document = new DocumentModel(filePath, documentContent);
-        await SaveDocumentAsync(document);
-        
-        // 3. Chunking del contenido
-        var chunks = ChunkDocument(documentContent);
-        
-        // 4. Generar embeddings para cada chunk
-        foreach (var chunk in chunks)
-        {
-            var embedding = await _embeddingService.GenerateEmbeddingAsync(chunk.Content);
-            chunk.Embedding = embedding;
-            await SaveChunkAsync(chunk);
-        }
-    }
-    
-    private List<ChunkModel> ChunkDocument(string content, int chunkSize = 1500, int overlap = 200)
-    {
-        // Implementación de chunking inteligente
-        // Considerar párrafos, secciones, etc.
-    }
-}
-```
+Esta ruta no usa búsqueda vectorial MongoDB, reranking completo, ensamblaje de chunks contiguos ni la caché de embeddings.
 
-### TextExtractor
-```csharp
-public interface ITextExtractor
-{
-    Task<string> ExtractTextAsync(string filePath);
-    bool SupportsFileType(string extension);
-}
+### `EnhancedRagService` disponible
 
-public class WordTextExtractor : ITextExtractor
-{
-    public bool SupportsFileType(string extension) => 
-        extension.Equals(".docx", StringComparison.OrdinalIgnoreCase);
-    
-    public async Task<string> ExtractTextAsync(string filePath)
-    {
-        // Usar DocumentFormat.OpenXml para .docx
-        // Mantener estructura (títulos, párrafos)
-    }
-}
+`BlazorApp/Services/EnhancedRagService.cs` contiene búsqueda mejorada, reranking híbrido y límite aproximado de contexto. `RagOrchestrator` puede coordinarlo con procesamiento, sesiones y `ResponseFormatter`, pero `Chat.razor` no inyecta ni llama a ese orquestador.
 
-public class PdfTextExtractor : ITextExtractor
-{
-    public bool SupportsFileType(string extension) => 
-        extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase);
-    
-    public async Task<string> ExtractTextAsync(string filePath)
-    {
-        // Usar iTextSharp o similar para PDF
-        // Mantener información de páginas
-    }
-}
-```
+## Interfaz `/chat`
 
-### EnhancedRagService
-```csharp
-public class EnhancedRagService
-{
-    private readonly IMongoCollection<ChunkModel> _chunksCollection;
-    private readonly ITextEmbeddingGenerationService _embeddingService;
-    private readonly IChatCompletionService _chatService;
-    
-    public async Task<string> QueryDocumentsAsync(string userQuery, int maxResults = 5)
-    {
-        // 1. Embedding de la consulta
-        var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(userQuery);
-        
-        // 2. Búsqueda vectorial en MongoDB
-        var relevantChunks = await SearchVectorialAsync(queryEmbedding, maxResults);
-        
-        // 3. Ensamblar contexto
-        var context = BuildContext(relevantChunks);
-        
-        // 4. Generar prompt con contexto
-        var prompt = BuildPrompt(userQuery, context);
-        
-        // 5. LLM para respuesta final
-        var response = await GenerateResponseAsync(prompt);
-        
-        // 6. Formatear respuesta con fuentes
-        return FormatResponse(response, relevantChunks);
-    }
-    
-    private async Task<List<ChunkModel>> SearchVectorialAsync(float[] queryEmbedding, int limit)
-    {
-        // Búsqueda vectorial usando similitud coseno
-        // MongoDB 7+ soporta búsqueda vectorial nativa
-    }
-}
-```
+La implementación actual de `BlazorApp/Components/Pages/Chat.razor` contiene:
 
-## Flujos de Trabajo
+- Textarea con límite de 2000 caracteres.
+- Envío con Enter y salto de línea con Shift+Enter.
+- Estado de carga y spinner.
+- Una consulta enviada y una respuesta visible a la vez.
+- Acción para limpiar y comenzar una nueva consulta.
+- `MarkdownRenderer` para presentar la respuesta.
 
-### 1. Ingestion de Documentos
-```
-[Archivo Word/PDF] → [TextExtractor] → [Texto plano] → 
-[Chunking] → [Embedding] → [MongoDB] → [Ready for query]
-```
+No contiene un historial visual de mensajes ni una lista de sesiones. `ChatSessionService` existe y persiste sesiones, pero no está conectado a esta página.
 
-### 2. Procesamiento de Consulta
-```
-[User Query] → [Query Embedding] → [Vector Search] → 
-[Top K Chunks] → [Context Assembly] → [LLM Prompt] → 
-[LLM Response] → [Formatted Output]
-```
+## Almacenamiento de sesiones
 
-### 3. UI Interacción
-```
-[User types] → [Enter detection] → [Send to backend] → 
-[Show typing indicator] → [Process RAG] → [Update UI] → 
-[Display formatted response]
-```
+`ChatSessionService` y los modelos de chat permiten persistencia, carga, limpieza y exportación de conversaciones. El servicio está registrado como singleton. Su existencia no demuestra que el historial esté activo en la UI ni que el contexto histórico se esté enviando al LLM.
 
-## Consideraciones de Implementación
+## Observabilidad
 
-### Para MongoDB
-- Usar MongoDB 7+ para soporte nativo de búsqueda vectorial
-- Índices compuestos para optimizar búsqueda
-- Considerar Atlas Search si escalabilidad es crítica
+La aplicación registra:
 
-### Para Ollama
-- Configurar timeout apropiado para embeddings
-- Cache de embeddings pre-generados
-- Modelos optimizados para español (si aplica)
+- `ErrorHandlingMiddleware`.
+- `RequestLoggingMiddleware`.
+- `PerformanceMiddleware`.
+- Extensiones de logging estructurado.
+- Health check `/health`.
+- Página `/statistics`.
 
-### Para Blazor
-- Estado reactivo para UI
-- Componentes reutilizables
-- Manejo de errores amigable
-- Loading states claros
+La presencia de estos componentes no sustituye una prueba de ejecución, una métrica de rendimiento validada o alertas operativas configuradas.
 
-### Para Despliegue
-- Docker Compose actualizado
-- Variables de entorno para configuración
-- Health checks para servicios
-- Logging estructurado
+## Despliegue
+
+Existen `docker-compose.yml` y `docker-compose-simple.yml`. El compose principal incluye MongoDB, Ollama, Blazor, health checks, variables de entorno y montaje del script de inicialización optimizado. El compose simple es una variante reducida y no ofrece exactamente las mismas garantías.
+
+## Decisiones pendientes
+
+Para completar la arquitectura objetivo, las tareas pendientes son:
+
+1. Conectar `/chat` con `RagOrchestrator` o con `EnhancedRagService`.
+2. Implementar búsqueda vectorial MongoDB real y verificar el índice activo.
+3. Integrar `EmbeddingCacheService` en las lecturas y escrituras de embeddings.
+4. Conectar `ChatSessionService` con la interfaz y el contexto del LLM.
+5. Unificar el esquema MongoDB y elegir un script canónico de inicialización.
+6. Añadir pruebas end-to-end e integración.
+7. Completar la documentación técnica y de usuario.
+8. Añadir las validaciones de seguridad y rutas previstas en los requisitos.

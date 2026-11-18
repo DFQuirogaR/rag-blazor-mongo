@@ -11,7 +11,7 @@
 <div class="documents-container">
     <!-- Header -->
     <div class="documents-header">
-        <h2>gestión de documentos</h2>
+        <h2>Gestión de documentos</h2>
         <div class="header-stats">
             <button class="btn-refresh" @onclick="RefreshDocuments" disabled="@isLoading">
                 <i class="bi bi-arrow-clockwise"></i>
@@ -119,16 +119,15 @@
         @if (string.IsNullOrWhiteSpace(searchTerm) && string.IsNullOrWhiteSpace(selectedStatus))
         {
             <div class="table-wrapper">
-                <table class="documents-table">
+                <table class="documents-table resizable-table">
                     <thead>
                         <tr>
-                            <th>Nombre del Archivo</th>
-                            <th>Tipo</th>
-                            <th>Estado</th>
-                            <th>Chunks</th>
-                            <th>Cargado</th>
-                            <th>Tags</th>
-                            <th>Acciones</th>
+                            <th>Nombre del Archivo<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Tipo<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Estado<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Chunks<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Cargado<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Acciones<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -155,25 +154,6 @@
                                 <td>
                                     <span class="upload-date">@doc.UploadDate.ToString("dd/MM/yyyy HH:mm")</span>
                                 </td>
-                                <td>
-                                    <div class="tags-container">
-                                        @if (doc.Tags?.Count > 0)
-                                        {
-                                            @foreach (var tag in doc.Tags.Take(3))
-                                            {
-                                                <span class="tag">@tag</span>
-                                            }
-                                            @if (doc.Tags.Count > 3)
-                                            {
-                                                <span class="tag more">+@(doc.Tags.Count - 3)</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="no-tags">-</span>
-                                        }
-                                    </div>
-                                </td>
                                 <td class="actions">
                                     <button class="btn-action reprocess" 
                                             @onclick="() => ReprocessDocument(doc.Id)"
@@ -196,7 +176,7 @@
                         @if (documents.Items.Count == 0 && !isLoading)
                         {
                             <tr>
-                                <td colspan="7" class="no-results">
+                                <td colspan="6" class="no-results">
                                     <div class="no-results-content">
                                         <i class="bi bi-inbox"></i>
                                         <p>No se encontraron documentos</p>
@@ -244,14 +224,14 @@
         else
         {
             <div class="table-wrapper">
-                <table class="documents-table">
+                <table class="documents-table resizable-table">
                     <thead>
                         <tr>
-                            <th>Nombre del Archivo</th>
-                            <th>Estado</th>
-                            <th>Chunks</th>
-                            <th>Cargado</th>
-                            <th>Acciones</th>
+                            <th>Nombre del Archivo<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Estado<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Chunks<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Cargado<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
+                            <th>Acciones<span class="column-resizer" onmousedown="startTableResize(event, this)" aria-hidden="true"></span></th>
                         </tr>
                     </thead>
                     <tbody>

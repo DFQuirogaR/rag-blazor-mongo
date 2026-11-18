@@ -1,17 +1,106 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager NavigationManager
 
-<div class="welcome-container">
-    <div class="welcome-card">
-        <h1>👋 Bienvenido</h1>
-        <p>
-            Plataforma de asistencia basada en IA para consultas,
-            gestión de conocimiento y soporte empresarial.
-        </p>
+<PageTitle>Inicio - Asistente RAG</PageTitle>
 
-        <div class="actions">
-            <a href="chat" class="btn btn-primary">
-                Iniciar conversación
-            </a>
+<div class="home-page">
+    <section class="home-hero">
+        <div class="hero-copy">
+            <span class="eyebrow"><i class="bi bi-stars"></i> Asistente de conocimiento</span>
+            <h1>Encuentra la solución que necesitas</h1>
+            <p>Consulta la documentación oficial y encuentra respuestas claras para tu operación.</p>
+
+            <div class="home-search">
+                <i class="bi bi-search"></i>
+                <input @bind="query"
+                       @bind:event="oninput"
+                       @onkeydown="HandleKeyDown"
+                       placeholder="Escribe tu duda o pega un error, mensaje o síntoma..."
+                       aria-label="Consulta de conocimiento" />
+                <button @onclick="Search" disabled="@string.IsNullOrWhiteSpace(query)">
+                    <i class="bi bi-stars"></i>
+                    <span>Consultar</span>
+                </button>
+            </div>
+            <div class="quick-searches">
+                <span>Buscar en</span>
+                <button @onclick='() => SearchPreset("Todos los documentos")'>Todos los documentos</button>
+                <button @onclick='() => SearchPreset("Procedimientos")'>Procedimientos</button>
+                <button @onclick='() => SearchPreset("Incidentes")'>Incidentes</button>
+            </div>
         </div>
-    </div>
+        <div class="hero-illustration" aria-hidden="true">
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
+            <div class="robot-face"><i class="bi bi-robot"></i></div>
+            <div class="sparkle sparkle-one"><i class="bi bi-stars"></i></div>
+            <div class="sparkle sparkle-two"><i class="bi bi-plus-lg"></i></div>
+        </div>
+    </section>
+
+    <section class="categories-section" aria-labelledby="categories-title">
+        <div class="section-heading">
+            <div>
+                <span class="eyebrow muted"><i class="bi bi-grid-3x3-gap"></i> Accesos rápidos</span>
+                <h2 id="categories-title">Explora por categoría</h2>
+            </div>
+            <span class="category-count">@categories.Count áreas disponibles</span>
+        </div>
+
+        <div class="category-grid">
+            @foreach (var category in categories)
+            {
+                <a class="category-card @category.Theme" href="@category.Href">
+                    <div class="category-icon"><i class="bi @category.Icon"></i></div>
+                    <div class="category-content">
+                        <h3>@category.Name</h3>
+                        <p>@category.Description</p>
+                        <span class="category-link">@category.Action <i class="bi bi-arrow-right"></i></span>
+                    </div>
+                </a>
+            }
+        </div>
+    </section>
 </div>
+
+@code {
+    private string query = string.Empty;
+
+    private readonly List<HomeCategory> categories =
+    [
+        new("Inicio", "bi-house-door", "Regresa al espacio principal de conocimiento y consultas.", "Ver inicio", "category-blue", "/"),
+        new("Chat", "bi-chat-dots", "Realiza preguntas sobre la documentación procesada.", "Hacer una consulta", "category-purple", "/chat"),
+        new("Documentos", "bi-folder2-open", "Explora y administra la base de conocimiento disponible.", "Ver documentos", "category-green", "/documents")
+    ];
+
+    private void Search()
+    {
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            NavigationManager.NavigateTo($"/chat?query={Uri.EscapeDataString(query.Trim())}");
+        }
+    }
+
+    private void SearchPreset(string preset)
+    {
+        query = preset;
+        Search();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && !string.IsNullOrWhiteSpace(query))
+        {
+            Search();
+        }
+    }
+
+    private sealed record HomeCategory(
+        string Name,
+        string Icon,
+        string Description,
+        string Action,
+        string Theme,
+        string Href);
+}

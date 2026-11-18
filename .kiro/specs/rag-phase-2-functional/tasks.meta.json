@@ -271,6 +271,88 @@
         "chatSessionId": "sess_38ce5fc8-dbac-4f48-8783-12daa160f9f1",
         "timestamp": 1793223923883
       }
+    ],
+    "**1.1 Configurar MongoDB optimizado para RAG**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600564814
+      }
+    ],
+    "**1.3 Crear modelos de datos para MongoDB**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600565173
+      }
+    ],
+    "**2.2 Configurar scanner de carpetas**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600565440
+      }
+    ],
+    "**3.1 Mejorar la búsqueda RAG**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600565880
+      }
+    ],
+    "**3.2 Integrar caché de embeddings**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600566134
+      }
+    ],
+    "**3.3 Configurar y verificar índices vectoriales**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600566367
+      }
+    ],
+    "**4.1 Completar la página `/chat`**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600566644
+      }
+    ],
+    "**4.2 Conectar el servicio de sesiones de chat**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600567803
+      }
+    ],
+    "**5.1 Integrar los componentes principales**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600568047
+      }
+    ],
+    "**5.3 Completar logging y monitoreo**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600568294
+      }
+    ],
+    "**6.2 Crear documentación técnica**": [
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794600568530
+      },
+      {
+        "executionId": "db0bbfc7-b59c-4986-b2b9-ae7231877385",
+        "chatSessionId": "sess_2a04300d-96f4-4a77-a04e-19abf6052e5b",
+        "timestamp": 1794601978014
+      }
     ]
   }
 }
