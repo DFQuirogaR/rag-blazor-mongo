@@ -23,6 +23,10 @@ build_property._RazorSourceGeneratorDebug =
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
+[C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/AccessDenied.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBY2Nlc3NEZW5pZWQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/App.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -45,6 +49,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/Pages/Weather.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXZWF0aGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/RedirectToLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSZWRpcmVjdFRvTG9naW4ucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/Routes.razor]
@@ -90,3 +98,11 @@ build_metadata.AdditionalFiles.CssScope = b-7gt2111kuu
 [C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/Pages/Statistics.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTdGF0aXN0aWNzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-fmjfx96mji
+
+[C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Areas/Identity/Pages/Account/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Areas/Identity/Pages/Shared/_LoginPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcU2hhcmVkXF9Mb2dpblBhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 

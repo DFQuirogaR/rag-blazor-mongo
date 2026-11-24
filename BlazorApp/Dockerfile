@@ -30,7 +30,7 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 COPY --from=build /app/publish .
 
 # Crear estructura de directorios y establecer permisos
-RUN mkdir -p /app/logs /app/documents /app/models && \
+RUN mkdir -p /app/logs /app/documents /app/models /app/data && \
     chown -R appuser:appgroup /app
 
 # Exponer puerto (debe coincidir con ASPNETCORE_URLS)

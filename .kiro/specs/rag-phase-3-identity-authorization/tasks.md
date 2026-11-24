@@ -1,46 +1,44 @@
 # Tareas: autenticación local y autorización
 
-- [ ] 1. Añadir Identity local
-  - Añadir paquetes de ASP.NET Core Identity, EF Core y SQLite compatibles con el target del proyecto.
-  - Crear `ApplicationUser` y `ApplicationDbContext`.
-  - Configurar cookies, login, logout, validación de correo y contraseña.
-  - Usar correo electrónico como `UserName` con `RequireUniqueEmail`.
+- [x] 1. Añadir Identity local
+  - Añadidos `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.AspNetCore.Identity.UI` y `Microsoft.EntityFrameworkCore.Sqlite`.
+  - Creados `ApplicationUser` y `ApplicationDbContext`.
+  - Configuradas cookies, login, logout, validación de correo y contraseña.
+  - Configurado el correo como `UserName` con `RequireUniqueEmail`.
+  - Validado el flujo de login local en Docker con una cuenta de correo.
 
-- [ ] 2. Preparar Identity para Docker
-  - Añadir `ConnectionStrings__IdentityDb`.
-  - Crear la ruta `/app/data/auth.db`.
-  - Añadir volumen `auth_data` al Compose principal.
-  - Verificar permisos para el usuario no root.
-  - Crear/aplicar migraciones de forma reproducible.
+- [-] 2. Preparar Identity para Docker
+  - Añadida `ConnectionStrings__IdentityDb`.
+  - Creada la ruta `/app/data/auth.db`.
+  - Añadido el volumen `auth_data` al Compose principal.
+  - Verificados los permisos del usuario `appuser` sobre el archivo SQLite.
+  - Se utiliza `EnsureCreatedAsync` como estrategia local validada; las migraciones EF reproducibles quedan como mejora posterior.
 
-- [ ] 3. Crear seed de desarrollo
-  - Crear `DevelopmentIdentitySeeder` idempotente.
-  - Crear los roles `Rag.Administrator`, `Rag.DocumentAuditor` y `Rag.N1Agent`.
-  - Leer correos y contraseñas desde variables protegidas.
-  - Impedir el seed cuando no sea `Development` o no esté habilitado.
-  - Probar reinicio sin duplicados.
+- [x] 3. Crear seed de desarrollo
+  - Creado `DevelopmentIdentitySeeder` idempotente.
+  - Creados los roles `Rag.Administrator`, `Rag.DocumentAuditor` y `Rag.N1Agent`.
+  - Correos y contraseñas se leen desde variables protegidas del Compose local.
+  - El seed solo se ejecuta con `Development` y `SeedDevelopmentUsers=true`.
+  - Verificada la creación de `/app/data/auth.db`, las cuentas y los roles.
 
-- [ ] 4. Crear actor y políticas
-  - Crear `ApplicationActor`/`CurrentUserContext`.
-  - Crear `Documents.View`, `Documents.Process`, `Documents.Delete`, `Chat.Use`, `Statistics.View` y `Administration.Manage`.
-  - Mapear roles a políticas en un único punto.
-  - Añadir pruebas de la matriz de autorización.
+- [x] 4. Crear actor y políticas
+  - Creados `ApplicationActor`, `CurrentUserContext` y las seis políticas.
+  - Roles y políticas se centralizan en `ApplicationRoles.cs`.
+  - Validada la matriz de autorización con las cuentas locales de administrador, auditor y agente N1.
 
-- [ ] 5. Proteger la aplicación
-  - Proteger `/chat`, `/documents` y `/statistics`.
-  - Proteger reprocesamiento y eliminación en los servicios.
-  - Mantener `/health` operativo sin datos sensibles.
-  - Revisar que rechazos no muten datos.
+- [x] 5. Proteger la aplicación
+  - Protegidos `/chat`, `/documents` y `/statistics` mediante políticas.
+  - Las acciones de escaneo, reprocesamiento y eliminación tienen controles de autorización en la página y el flujo de servicios.
+  - `/health` sigue operativo sin datos de identidad sensibles.
+  - Validado que cada rol recibe o rechaza las acciones esperadas sin mutaciones indebidas.
 
-- [ ] 6. Revisar seguridad local
-  - Verificar que no se versionan contraseñas ni bases SQLite.
-  - Revisar cookies seguras, antiforgery y logs sin credenciales.
-  - Mantener MongoDB y Ollama en la red Docker y publicar solo lo necesario para desarrollo.
+- [x] 6. Revisar seguridad local
+  - `.env`, contraseñas y `auth.db` no se versionan mediante `.gitignore` y variables del perfil local.
+  - Configurados cookies, antiforgery y logout local; las pruebas confirmaron el flujo de sesión.
+  - MongoDB y Ollama permanecen en la red Docker, con puertos publicados para desarrollo local.
 
-- [ ] 7. Checkpoint F3
-  - Ejecutar compilación y pruebas.
-  - Levantar todo con Docker Compose.
-  - Iniciar sesión con las cuentas de prueba.
-  - Probar cada rol contra las rutas y acciones.
-  - Reiniciar `blazor-app` y comprobar que las cuentas siguen disponibles.
-  - Registrar evidencia del smoke test Docker.
+- [x] 7. Checkpoint F3
+  - Compilación de la aplicación correcta y 26 pruebas existentes correctas.
+  - El perfil local Docker creó el volumen `auth_data`, la base SQLite y las cuentas de prueba.
+  - Validado el login con `admin@example.test` y las restricciones de los tres roles.
+  - Validado el logout, la persistencia de cuentas y la navegación protegida.

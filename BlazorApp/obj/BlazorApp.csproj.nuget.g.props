@@ -13,6 +13,8 @@
     <SourceRoot Include="C:\Users\dquirogr\.nuget\packages\" />
   </ItemGroup>
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props" Condition="Exists('$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.aspnetcore.identity.ui\10.0.0\build\Microsoft.AspNetCore.Identity.UI.props" Condition="Exists('$(NuGetPackageRoot)microsoft.aspnetcore.identity.ui\10.0.0\build\Microsoft.AspNetCore.Identity.UI.props')" />
     <Import Project="$(NuGetPackageRoot)microsoft.aspnetcore.app.internal.assets\10.0.12\build\Microsoft.AspNetCore.App.Internal.Assets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.aspnetcore.app.internal.assets\10.0.12\build\Microsoft.AspNetCore.App.Internal.Assets.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">

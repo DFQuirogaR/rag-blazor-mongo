@@ -1,0 +1,14 @@
+services:
+  blazor-app:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Authentication__SeedDevelopmentUsers=true
+      - Authentication__Admin__Email=${LOCAL_ADMIN_EMAIL:?Define LOCAL_ADMIN_EMAIL en .env}
+      - Authentication__Admin__Password=${LOCAL_ADMIN_PASSWORD:?Define LOCAL_ADMIN_PASSWORD en .env}
+      - Authentication__Admin__DisplayName=${LOCAL_ADMIN_DISPLAY_NAME:-Administrador local}
+      - Authentication__Auditor__Email=${LOCAL_AUDITOR_EMAIL:?Define LOCAL_AUDITOR_EMAIL en .env}
+      - Authentication__Auditor__Password=${LOCAL_AUDITOR_PASSWORD:?Define LOCAL_AUDITOR_PASSWORD en .env}
+      - Authentication__Auditor__DisplayName=${LOCAL_AUDITOR_DISPLAY_NAME:-Auditor local}
+      - Authentication__N1__Email=${LOCAL_N1_EMAIL:?Define LOCAL_N1_EMAIL en .env}
+      - Authentication__N1__Password=${LOCAL_N1_PASSWORD:?Define LOCAL_N1_PASSWORD en .env}
+      - Authentication__N1__DisplayName=${LOCAL_N1_DISPLAY_NAME:-Agente N1 local}

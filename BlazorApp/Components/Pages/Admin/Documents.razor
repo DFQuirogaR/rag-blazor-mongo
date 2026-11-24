@@ -1,10 +1,12 @@
 @page "/documents"
-@using BlazorApp.Services
-@using BlazorApp.Models
+@attribute [Authorize(Policy = ApplicationPolicies.DocumentsView)]
+@using BlazorApp.Data
 @inject DocumentManagementService DocumentManagementService
 @inject DocumentScanner DocumentScanner
 @inject DocumentProcessor DocumentProcessor
 @inject ILogger<Documents> Logger
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAuthorizationService AuthorizationService
 
 <PageTitle>Documentos - Gestión</PageTitle>
 
@@ -13,7 +15,7 @@
     <div class="documents-header">
         <h2>Gestión de documentos</h2>
         <div class="header-stats">
-            <button class="btn-refresh" @onclick="RefreshDocuments" disabled="@isLoading">
+            <button class="btn-refresh" @onclick="RefreshDocuments" disabled="@(isLoading || !canProcess)">
                 <i class="bi bi-arrow-clockwise"></i>
                 <span>@(isLoading ? "Procesando..." : "Escanear y actualizar")</span>
             </button>
@@ -157,6 +159,7 @@
                                 <td class="actions">
                                     <button class="btn-action reprocess" 
                                             @onclick="() => ReprocessDocument(doc.Id)"
+                                            disabled="@(!canProcess)"
                                             title="Re-procesar documento">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
@@ -167,6 +170,7 @@
                                     </button>
                                     <button class="btn-action delete" 
                                             @onclick="() => DeleteDocument(doc.Id)"
+                                            disabled="@(!canDelete)"
                                             title="Eliminar documento">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -258,6 +262,7 @@
                                 <td class="actions">
                                     <button class="btn-action reprocess" 
                                             @onclick="() => ReprocessDocument(doc.Id)"
+                                            disabled="@(!canProcess)"
                                             title="Re-procesar documento">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
@@ -268,6 +273,7 @@
                                     </button>
                                     <button class="btn-action delete" 
                                             @onclick="() => DeleteDocument(doc.Id)"
+                                            disabled="@(!canDelete)"
                                             title="Eliminar documento">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -437,10 +443,19 @@
     private bool showToast = false;
     private string toastMessage = string.Empty;
     private string toastType = string.Empty; // success, error
+    private bool canProcess;
+    private bool canDelete;
     private int loadVersion;
     
     protected override async Task OnInitializedAsync()
     {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        canProcess = (await AuthorizationService.AuthorizeAsync(
+            authenticationState.User,
+            ApplicationPolicies.DocumentsProcess)).Succeeded;
+        canDelete = (await AuthorizationService.AuthorizeAsync(
+            authenticationState.User,
+            ApplicationPolicies.DocumentsDelete)).Succeeded;
         await LoadData();
     }
 
@@ -465,6 +480,12 @@
 
     private async Task RefreshDocuments()
     {
+        if (!canProcess)
+        {
+            ShowToast("No tienes permisos para procesar documentos", "error");
+            return;
+        }
+
         if (isLoading)
         {
             return;
@@ -556,6 +577,12 @@
 
     private async Task ReprocessDocument(string documentId)
     {
+        if (!canProcess)
+        {
+            ShowToast("No tienes permisos para reprocesar documentos", "error");
+            return;
+        }
+
         showConfirmModal = true;
         confirmMessage = "¿Estás seguro de que quieres re-procesar este documento? Se eliminarán los chunks actuales y se crearán nuevos.";
         confirmActionText = "Re-procesar";
@@ -597,6 +624,12 @@
 
     private void DeleteDocument(string documentId)
     {
+        if (!canDelete)
+        {
+            ShowToast("No tienes permisos para eliminar documentos", "error");
+            return;
+        }
+
         showConfirmModal = true;
         confirmMessage = "¿Estás seguro de que quieres eliminar este documento? Esta acción eliminará el documento y todos sus chunks asociados. No se puede deshacer.";
         confirmActionText = "Eliminar";

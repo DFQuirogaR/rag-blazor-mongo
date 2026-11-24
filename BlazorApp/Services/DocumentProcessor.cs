@@ -122,14 +122,14 @@ public class DocumentProcessor
             var document = existingDocument ?? DocumentModel.Create(
                 filePath: filePath,
                 fileName: fileInfo.Name,
-                fileType: extension.TrimStart('.'),
+                fileType: extension.TrimStart('.').ToLowerInvariant(),
                 fileSize: fileInfo.Length,
                 fileHash: contentHash
             );
 
             document.FilePath = filePath;
             document.FileName = fileInfo.Name;
-            document.FileType = extension.TrimStart('.');
+            document.FileType = extension.TrimStart('.').ToLowerInvariant();
             document.FileSize = fileInfo.Length;
             document.ContentHash = contentHash;
             document.ProcessingStatus = DocumentModel.DocumentStatus.Processing.ToString();

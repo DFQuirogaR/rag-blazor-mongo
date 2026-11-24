@@ -1,7 +1,11 @@
 ﻿using BlazorApp.Components;
+using BlazorApp.Data;
 using BlazorApp.Logging;
 using BlazorApp.Middleware;
 using BlazorApp.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using Microsoft.SemanticKernel;
 using Serilog;
@@ -26,6 +30,48 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddRazorPages();
+builder.Services.AddCascadingAuthenticationState();
+
+var identityConnectionString = builder.Configuration.GetConnectionString("IdentityDb")
+    ?? "Data Source=/app/data/auth.db";
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite(identityConnectionString));
+
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = !builder.Environment.IsDevelopment();
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.Configure<BlazorApp.Data.AuthenticationOptions>(
+    builder.Configuration.GetSection("Authentication"));
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(ApplicationPolicies.ChatUse, policy =>
+        policy.RequireRole(ApplicationRoles.Administrator, ApplicationRoles.N1Agent));
+    options.AddPolicy(ApplicationPolicies.DocumentsView, policy =>
+        policy.RequireRole(ApplicationRoles.Administrator, ApplicationRoles.DocumentAuditor, ApplicationRoles.N1Agent));
+    options.AddPolicy(ApplicationPolicies.DocumentsProcess, policy =>
+        policy.RequireRole(ApplicationRoles.Administrator, ApplicationRoles.DocumentAuditor));
+    options.AddPolicy(ApplicationPolicies.DocumentsDelete, policy =>
+        policy.RequireRole(ApplicationRoles.Administrator));
+    options.AddPolicy(ApplicationPolicies.StatisticsView, policy =>
+        policy.RequireRole(ApplicationRoles.Administrator, ApplicationRoles.DocumentAuditor));
+    options.AddPolicy(ApplicationPolicies.AdministrationManage, policy =>
+        policy.RequireRole(ApplicationRoles.Administrator));
+});
+
+builder.Services.AddScoped<CurrentUserContext>();
+builder.Services.AddScoped<DevelopmentIdentitySeeder>();
 
 // Add metrics collector
 builder.Services.AddMetricsCollector();
@@ -111,6 +157,13 @@ builder.Services.AddSingleton<RagService>();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var identityDatabase = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await identityDatabase.Database.EnsureCreatedAsync();
+    await scope.ServiceProvider.GetRequiredService<DevelopmentIdentitySeeder>().SeedAsync();
+}
+
 // Configure middleware pipeline
 app.UseErrorHandling();
 app.UseRequestLogging();
@@ -125,9 +178,17 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseWebSockets();
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health");
+app.MapRazorPages();
+app.MapPost("/auth/logout", async (HttpContext context) =>
+{
+    await context.SignOutAsync(IdentityConstants.ApplicationScheme);
+    return Results.Redirect("/");
+}).RequireAuthorization();
 
 // Map generated static web assets, including the Blazor Web client bootstrap.
 // Without this endpoint, /_framework/blazor.web.js returns 404 and pages remain static.

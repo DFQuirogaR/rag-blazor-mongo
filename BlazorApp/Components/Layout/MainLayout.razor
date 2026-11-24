@@ -50,6 +50,21 @@
                     </div>
                 }
             </div>
+
+            <div class="account-actions">
+                <AuthorizeView>
+                    <Authorized Context="authState">
+                        <span class="account-name">@authState.User.Identity?.Name</span>
+                        <form method="post" action="/auth/logout" class="d-inline">
+                            <AntiforgeryToken />
+                            <button type="submit" class="btn btn-link account-logout">Salir</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="account-login" href="/Identity/Account/Login">Iniciar sesión</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
     </header>
 

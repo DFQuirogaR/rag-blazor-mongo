@@ -1,4 +1,5 @@
 @page "/statistics"
+@attribute [Authorize(Policy = ApplicationPolicies.StatisticsView)]
 @using BlazorApp.Middleware
 @inject IMetricsCollector MetricsCollector
 

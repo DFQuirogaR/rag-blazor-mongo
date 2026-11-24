@@ -60,6 +60,18 @@
               "version": "[10.0.12, )",
               "autoReferenced": true
             },
+            "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[10.0.0, )"
+            },
+            "Microsoft.AspNetCore.Identity.UI": {
+              "target": "Package",
+              "version": "[10.0.0, )"
+            },
+            "Microsoft.EntityFrameworkCore.Sqlite": {
+              "target": "Package",
+              "version": "[10.0.0, )"
+            },
             "Microsoft.Extensions.Http": {
               "target": "Package",
               "version": "[9.0.0, )"

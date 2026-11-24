@@ -102,8 +102,11 @@ services:
     volumes:
       # Usa ./documents por defecto. También puede configurarse DOCUMENTS_PATH en .env.
       - ${DOCUMENTS_PATH:-./documents}:/app/documents:ro
+      - auth_data:/app/data
     environment:
       - ConnectionStrings__MongoDb=mongodb://mongodb:27017/RagDatabase
+      - ConnectionStrings__IdentityDb=Data Source=/app/data/auth.db
+      - Authentication__SeedDevelopmentUsers=false
       - Ollama__Endpoint=http://ollama:11434
       - DocumentSettings__ScanPaths__0=/app/documents
       - ASPNETCORE_ENVIRONMENT=Production
@@ -158,6 +161,8 @@ volumes:
   ollama_data:
     driver: local
   documents_data:
+    driver: local
+  auth_data:
     driver: local
 
 networks:

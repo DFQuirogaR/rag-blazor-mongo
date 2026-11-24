@@ -57,4 +57,4 @@ La aplicación, MongoDB, Ollama y la base SQLite de autenticación deben ejecuta
 
 ## Especificación histórica
 
-`rag-phase-3-history-localization` fue el plan consolidado inicial. Queda conservado como referencia, pero está marcado como supersedido. No se debe ejecutar como una única fase porque mezclaba identidad, historial, localización, retención y pruebas de extremo a extremo.
+`.kiro/specs/archive/rag-phase-3-history-localization-original` fue el plan consolidado inicial. Queda conservado como referencia, fuera de la lista de fases activas, y no se debe ejecutar.

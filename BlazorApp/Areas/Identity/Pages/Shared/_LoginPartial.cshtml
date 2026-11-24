@@ -1,0 +1,11 @@
+@using BlazorApp.Data
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+@if (SignInManager.IsSignedIn(User))
+{
+    <form method="post" asp-area="Identity" asp-page="/Account/Logout" class="d-inline">
+        <button type="submit" class="nav-link btn btn-link">Salir</button>
+    </form>
+}
