@@ -1,5 +1,7 @@
 # Implementation Plan: historial y localización RAG
 
+> **Estado:** plan histórico supersedido. No marques estas tareas como ruta de ejecución. La organización vigente está en `.kiro/specs/README.md` y en las carpetas `rag-phase-3-identity-authorization`, `rag-phase-4-history-traceability`, `rag-phase-5-localization` y `rag-phase-6-audit-statistics`.
+
 ## Overview
 
 Conectar `/chat` con el historial persistido por alcance anónimo en MongoDB, añadir búsqueda y administración de sesiones, localizar la interfaz en `es`/`en`/`pt` y pasar el idioma seleccionado al flujo RAG. Las tareas están ordenadas para que los contratos, modelos y límites existan antes de integrar la UI y las pruebas de extremo a extremo.
@@ -10,7 +12,7 @@ Conectar `/chat` con el historial persistido por alcance anónimo en MongoDB, a�
 - **[-]** Implementación parcial, no integrada o con evidencia insuficiente.
 - **[ ]** Pendiente.
 
-Las tareas de este documento son un plan nuevo y comienzan pendientes. Las tareas marcadas con `*` son pruebas opcionales; las tareas de implementación sin `*` son necesarias para integrar la funcionalidad.
+Este documento se conserva solo como referencia histórica. Las tareas vigentes están separadas por fase en las carpetas indicadas arriba y no deben ejecutarse desde este archivo. Las tareas marcadas con `*` pertenecían al plan anterior.
 
 ## Instrucción para la ejecución
 

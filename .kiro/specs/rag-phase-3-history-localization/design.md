@@ -1,5 +1,7 @@
 # Diseño de historial y localización RAG
 
+> **Estado:** diseño histórico de una fase consolidada. Queda supersedido por las especificaciones separadas de las fases 3, 4, 5 y 6. Consulta `.kiro/specs/README.md` antes de implementar.
+
 ## Estado y alcance
 
 Este diseño corresponde a `rag-phase-3-history-localization` y se basa en los requisitos aprobados de la fase 3 y en la arquitectura comprobada de la fase 2. No implementa código ni descompone el trabajo en tareas.

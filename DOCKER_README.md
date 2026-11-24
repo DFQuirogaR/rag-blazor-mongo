@@ -165,7 +165,7 @@ volumes:
 - C:\Users\dquirogr\Documents\sharepoint_doc:/app/documents:ro
 
 # Script de inicialización MongoDB
-- ./setup-mongodb-optimized.js:/docker-entrypoint-initdb.d/setup.js:ro
+- ./setup-mongodb-canonical.js:/docker-entrypoint-initdb.d/setup.js:ro
 
 # Scripts de Ollama
 - ./ollama-init:/opt/ollama-init:ro

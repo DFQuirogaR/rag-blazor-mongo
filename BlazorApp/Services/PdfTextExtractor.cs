@@ -96,10 +96,10 @@ public class PdfTextExtractor : ITextExtractor
                 _logger.LogError(ex, "Corrupted or invalid PDF document: {FilePath}", filePath);
                 throw new InvalidOperationException($"The PDF document is corrupted or invalid: {filePath}", ex);
             }
-            catch (Exception ex)
+            catch (iText.IO.Exceptions.IOException ex)
             {
-                _logger.LogError(ex, "Error extracting text from PDF document: {FilePath}", filePath);
-                throw;
+                _logger.LogError(ex, "Corrupted or invalid PDF document: {FilePath}", filePath);
+                throw new InvalidOperationException($"The PDF document is corrupted or invalid: {filePath}", ex);
             }
         });
     }

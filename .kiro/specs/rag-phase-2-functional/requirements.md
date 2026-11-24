@@ -20,6 +20,12 @@ La ingesta está compuesta por `DocumentScanner`, `DocumentProcessor`, `Document
 
 La ruta de chat actual ofrece una consulta única. Tiene envío con Enter, estado de carga, Markdown y una tarjeta de respuesta, pero no conecta el historial persistido de `ChatSessionService` con la interfaz.
 
+## Criterio de salida de la fase 2
+
+La fase 2 no necesita completar todas las optimizaciones RAG antes de iniciar la autenticación local de la fase 3. Para pasar a la fase 3 debe existir una base comprobable: compilación, pruebas ejecutables, esquema canónico de documentos/chunks, ingesta de un documento real, consulta RAG conocida y smoke test completo con Docker Compose.
+
+La búsqueda vectorial indexada, caché de embeddings, reranking avanzado, historial de chat y estadísticas persistentes se mantienen como trabajo posterior en sus especificaciones correspondientes. No se consideran eliminados; dejan de ser bloqueadores de la fase 3.
+
 ## Requisitos funcionales
 
 ### RF1: Gestión de documentos
@@ -100,6 +106,21 @@ La ruta de chat actual ofrece una consulta única. Tiene envío con Enter, estad
 - **[x] AC3: UI moderna.** `/chat` permite enviar con Enter y muestra la respuesta en una tarjeta con borde redondeado.
 - **[-] AC4: Formato de respuesta.** Hay Markdown, pasos y fuentes en las piezas disponibles, pero la ruta activa no presenta siempre la página, sección y cita detallada previstas.
 - **[ ] AC5: Rendimiento.** No existe una medición reproducible con 100 documentos que confirme una respuesta inferior a tres segundos.
+
+## Estado del checkpoint de cierre
+
+Validación ejecutada con Docker Compose:
+
+- MongoDB, Ollama y Blazor quedaron saludables.
+- Se verificaron las colecciones y validadores canónicos.
+- Se procesaron 53 documentos.
+- Se almacenaron 346 chunks con embeddings de 768 dimensiones.
+- Ningún chunk superó 1000 caracteres después del reprocesamiento.
+- No quedaron embeddings faltantes.
+- `/health` y `/chat` respondieron con HTTP 200.
+- Una consulta RAG conocida recuperó 5 chunks y recibió respuesta de Ollama.
+
+La búsqueda vectorial indexada, la caché conectada, el historial y las estadísticas persistentes permanecen fuera del cierre de esta fase.
 
 ## Configuración actual
 

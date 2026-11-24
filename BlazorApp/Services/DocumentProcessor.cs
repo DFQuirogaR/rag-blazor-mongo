@@ -46,7 +46,7 @@ public class DocumentProcessor
     /// <param name="filePath">Path to the document file</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The processed document model, or null if processing failed</returns>
-    public async Task<DocumentModel?> ProcessDocumentAsync(string filePath, CancellationToken cancellationToken = default)
+    public virtual async Task<DocumentModel?> ProcessDocumentAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -85,8 +85,21 @@ public class DocumentProcessor
                     DocumentModel.DocumentStatus.Completed.ToString(),
                     StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Document already processed with same content: {FilePath}", filePath);
-                return existingDocument;
+                var existingChunks = await ChunksCollection
+                    .Find(c => c.DocumentId == existingDocument.Id)
+                    .ToListAsync(cancellationToken);
+                var chunksAreUsable = existingChunks.Count == existingDocument.ChunkCount &&
+                    existingChunks.All(c => c.Embedding is { Length: 768 } && c.ChunkText.Length <= 1000);
+
+                if (chunksAreUsable)
+                {
+                    _logger.LogInformation("Document already processed with same content: {FilePath}", filePath);
+                    return existingDocument;
+                }
+
+                _logger.LogInformation(
+                    "Reprocessing document with incomplete or oversized chunks: {FilePath}",
+                    filePath);
             }
 
             // Extract text
@@ -213,7 +226,7 @@ public class DocumentProcessor
     /// <summary>
     /// Gets all documents in the database
     /// </summary>
-    public async Task<List<DocumentModel>> GetAllDocumentsAsync()
+    public virtual async Task<List<DocumentModel>> GetAllDocumentsAsync()
     {
         return await DocumentsCollection.Find(_ => true).ToListAsync();
     }
@@ -239,7 +252,7 @@ public class DocumentProcessor
     /// <summary>
     /// Deletes a document and all its chunks
     /// </summary>
-    public async Task<bool> DeleteDocumentAsync(string documentId, CancellationToken cancellationToken = default)
+    public virtual async Task<bool> DeleteDocumentAsync(string documentId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -269,7 +282,7 @@ public class DocumentProcessor
     /// <summary>
     /// Re-processes a document (useful after updates)
     /// </summary>
-    public async Task<DocumentModel?> ReprocessDocumentAsync(string documentId, CancellationToken cancellationToken = default)
+    public virtual async Task<DocumentModel?> ReprocessDocumentAsync(string documentId, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentByIdAsync(documentId);
         if (document == null)

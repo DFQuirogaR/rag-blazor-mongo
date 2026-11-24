@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Estado:** este documento queda supersedido como plan consolidado. La implementación se reorganizó en fases independientes para un entorno empresarial: identidad y autorización (fase 3), historial y trazabilidad (fase 4), localización (fase 5) y auditoría/estadísticas (fase 6). Consulta el índice en `.kiro/specs/README.md`. Conserva este documento como referencia de requisitos originales; no lo ejecutes como una única fase.
+
 ## Introduction
 
 La fase 3 añadirá historial reutilizable de consultas y respuestas a la aplicación RAG existente, junto con selección de idioma para la interfaz y las respuestas del asistente. El objetivo es permitir que una persona encuentre rápidamente información consultada anteriormente sin repetir una búsqueda y que use la aplicación principalmente en español, inglés o portugués.

@@ -66,7 +66,7 @@ Aplicación Blazor Server para consultar documentación `.docx` y `.pdf` mediant
 
    Después abre [http://localhost:8080/chat](http://localhost:8080/chat).
 
-El script `setup-mongodb-optimized.js` se monta como inicializador de MongoDB. Los scripts de inicialización de MongoDB solo se ejecutan automáticamente cuando se crea el volumen por primera vez. Para revisar o volver a ejecutar la configuración, consulta [MONGODB_SETUP.md](MONGODB_SETUP.md).
+El script `setup-mongodb-canonical.js` se monta como inicializador de MongoDB. Los scripts de inicialización de MongoDB solo se ejecutan automáticamente cuando se crea el volumen por primera vez. Para revisar o volver a ejecutar la configuración, consulta [MONGODB_SETUP.md](MONGODB_SETUP.md).
 
 ## Desarrollo local
 

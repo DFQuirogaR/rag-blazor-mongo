@@ -1,5 +1,9 @@
 using BlazorApp.Services;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace BlazorAppTests;
@@ -12,8 +16,8 @@ public class TextExtractorTests : IDisposable
     
     public TextExtractorTests()
     {
-        _wordLogger = new Logger<WordTextExtractor>(new LoggerConfiguration().CreateLogger());
-        _pdfLogger = new Logger<PdfTextExtractor>(new LoggerConfiguration().CreateLogger());
+        _wordLogger = NullLogger<WordTextExtractor>.Instance;
+        _pdfLogger = NullLogger<PdfTextExtractor>.Instance;
         
         // Setup test data directory
         _testDataPath = Path.Combine(AppContext.BaseDirectory, "TestData");
@@ -21,130 +25,130 @@ public class TextExtractorTests : IDisposable
     }
     
     [Fact]
-    public async Task WordTextExtractor_SupportsExtension_ShouldReturnTrueForDocx()
+    public async Task WordTextExtractor_SupportsFileType_ShouldReturnTrueForDocx()
     {
         // Arrange
         var extractor = new WordTextExtractor(_wordLogger);
         
         // Act
-        var result = extractor.SupportsExtension(".docx");
+        var result = extractor.SupportsFileType(".docx");
         
         // Assert
         Assert.True(result);
     }
     
     [Fact]
-    public async Task WordTextExtractor_SupportsExtension_ShouldReturnFalseForInvalidExtension()
+    public async Task WordTextExtractor_SupportsFileType_ShouldReturnFalseForInvalidExtension()
     {
         // Arrange
         var extractor = new WordTextExtractor(_wordLogger);
         
         // Act
-        var result = extractor.SupportsExtension(".txt");
+        var result = extractor.SupportsFileType(".txt");
         
         // Assert
         Assert.False(result);
     }
     
     [Fact]
-    public async Task WordTextExtractor_SupportsExtension_ShouldHandleNullExtension()
+    public async Task WordTextExtractor_SupportsFileType_ShouldHandleNullExtension()
     {
         // Arrange
         var extractor = new WordTextExtractor(_wordLogger);
         
         // Act
-        var result = extractor.SupportsExtension(null);
+        var result = extractor.SupportsFileType(null);
         
         // Assert
         Assert.False(result);
     }
     
     [Fact]
-    public async Task WordTextExtractor_SupportsExtension_ShouldHandleEmptyExtension()
+    public async Task WordTextExtractor_SupportsFileType_ShouldHandleEmptyExtension()
     {
         // Arrange
         var extractor = new WordTextExtractor(_wordLogger);
         
         // Act
-        var result = extractor.SupportsExtension(string.Empty);
+        var result = extractor.SupportsFileType(string.Empty);
         
         // Assert
         Assert.False(result);
     }
     
     [Fact]
-    public async Task WordTextExtractor_SupportsExtension_ShouldBeCaseInsensitive()
+    public async Task WordTextExtractor_SupportsFileType_ShouldBeCaseInsensitive()
     {
         // Arrange
         var extractor = new WordTextExtractor(_wordLogger);
         
         // Act
-        var result = extractor.SupportsExtension(".DOCX");
+        var result = extractor.SupportsFileType(".DOCX");
         
         // Assert
         Assert.True(result);
     }
     
     [Fact]
-    public async Task PdfTextExtractor_SupportsExtension_ShouldReturnTrueForPdf()
+    public async Task PdfTextExtractor_SupportsFileType_ShouldReturnTrueForPdf()
     {
         // Arrange
         var extractor = new PdfTextExtractor(_pdfLogger);
         
         // Act
-        var result = extractor.SupportsExtension(".pdf");
+        var result = extractor.SupportsFileType(".pdf");
         
         // Assert
         Assert.True(result);
     }
     
     [Fact]
-    public async Task PdfTextExtractor_SupportsExtension_ShouldReturnFalseForInvalidExtension()
+    public async Task PdfTextExtractor_SupportsFileType_ShouldReturnFalseForInvalidExtension()
     {
         // Arrange
         var extractor = new PdfTextExtractor(_pdfLogger);
         
         // Act
-        var result = extractor.SupportsExtension(".docx");
+        var result = extractor.SupportsFileType(".docx");
         
         // Assert
         Assert.False(result);
     }
     
     [Fact]
-    public async Task PdfTextExtractor_SupportsExtension_ShouldHandleNullExtension()
+    public async Task PdfTextExtractor_SupportsFileType_ShouldHandleNullExtension()
     {
         // Arrange
         var extractor = new PdfTextExtractor(_pdfLogger);
         
         // Act
-        var result = extractor.SupportsExtension(null);
+        var result = extractor.SupportsFileType(null);
         
         // Assert
         Assert.False(result);
     }
     
     [Fact]
-    public async Task PdfTextExtractor_SupportsExtension_ShouldHandleEmptyExtension()
+    public async Task PdfTextExtractor_SupportsFileType_ShouldHandleEmptyExtension()
     {
         // Arrange
         var extractor = new PdfTextExtractor(_pdfLogger);
         
         // Act
-        var result = extractor.SupportsExtension(string.Empty);
+        var result = extractor.SupportsFileType(string.Empty);
         
         // Assert
         Assert.False(result);
     }
     
     [Fact]
-    public async Task PdfTextExtractor_SupportsExtension_ShouldBeCaseInsensitive()
+    public async Task PdfTextExtractor_SupportsFileType_ShouldBeCaseInsensitive()
     {
         // Arrange
         var extractor = new PdfTextExtractor(_pdfLogger);
         
         // Act
-        var result = extractor.SupportsExtension(".PDF");
+        var result = extractor.SupportsFileType(".PDF");
         
         // Assert
         Assert.True(result);

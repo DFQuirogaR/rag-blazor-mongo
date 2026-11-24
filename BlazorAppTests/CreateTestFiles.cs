@@ -3,9 +3,9 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System;
 
-class Program
+internal static class TestFileGenerator
 {
-    static void Main()
+    public static void Main()
     {
         CreateTestWordDocument();
         Console.WriteLine("Test files created successfully!");

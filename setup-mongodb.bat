@@ -37,7 +37,7 @@ echo       MongoDB connection successful.
 REM Run the setup script
 echo.
 echo [3/4] Running MongoDB setup script...
-mongosh --file setup-mongodb-optimized.js
+mongosh --file setup-mongodb-canonical.js
 
 if errorlevel 1 (
     echo.

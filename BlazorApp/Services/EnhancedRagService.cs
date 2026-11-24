@@ -56,7 +56,7 @@ public class EnhancedRagService
     /// <param name="rerank">Whether to rerank results using hybrid scoring (default: true).</param>
     /// <param name="contextTokenLimit">Maximum tokens in context window (default: 3000).</param>
     /// <returns>Formatted response with sources and citations.</returns>
-    public async Task<string> QueryAsync(
+    public virtual async Task<string> QueryAsync(
         string userQuery,
         int maxResults = 10,
         bool rerank = true,
@@ -409,7 +409,7 @@ CONTEXTO:
     /// Gets the count of chunks with vector embeddings.
     /// </summary>
     /// <returns>Number of chunks with embeddings.</returns>
-    public async Task<int> GetChunkCountWithEmbeddingsAsync()
+    public virtual async Task<int> GetChunkCountWithEmbeddingsAsync()
     {
         var builder = Builders<ChunkModel>.Filter;
         var filter = builder.Exists(c => c.Embedding, true);

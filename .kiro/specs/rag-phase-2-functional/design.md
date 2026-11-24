@@ -6,6 +6,8 @@
 
 Este documento distingue la arquitectura que existe en el repositorio de las capacidades que todavía son objetivo de la fase 2. La documentación anterior describía `EnhancedRagService` como el camino principal, pero la página real `/chat` usa `RagService`.
 
+La fase 2 se cierra con una línea base funcional y reproducible, no con todas las optimizaciones posibles. Las mejoras que no sean necesarias para autenticar y probar la aplicación pasan a backlog posterior para evitar bloquear la fase 3.
+
 ## Arquitectura implementada
 
 ```text
@@ -152,9 +154,9 @@ La presencia de estos componentes no sustituye una prueba de ejecución, una mé
 
 Existen `docker-compose.yml` y `docker-compose-simple.yml`. El compose principal incluye MongoDB, Ollama, Blazor, health checks, variables de entorno y montaje del script de inicialización optimizado. El compose simple es una variante reducida y no ofrece exactamente las mismas garantías.
 
-## Decisiones pendientes
+## Backlog posterior a la línea base
 
-Para completar la arquitectura objetivo, las tareas pendientes son:
+La fase 2 no debe bloquear la autenticación local por optimizaciones que no son necesarias para demostrar el flujo actual. Las siguientes capacidades permanecen pendientes y deben planificarse después del checkpoint:
 
 1. Conectar `/chat` con `RagOrchestrator` o con `EnhancedRagService`.
 2. Implementar búsqueda vectorial MongoDB real y verificar el índice activo.

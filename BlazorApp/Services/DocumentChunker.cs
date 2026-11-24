@@ -148,8 +148,70 @@ public class DocumentChunker
             _logger.LogDebug("Created final chunk {ChunkIndex} with {Length} characters", chunkIndex, finalChunkText.Length);
         }
 
-        _logger.LogInformation("Created {ChunkCount} chunks from document", chunks.Count);
-        return chunks;
+        var normalizedChunks = NormalizeOversizedChunks(
+            chunks,
+            documentId,
+            actualChunkSize,
+            actualOverlapSize);
+
+        _logger.LogInformation("Created {ChunkCount} chunks from document", normalizedChunks.Count);
+        return normalizedChunks;
+    }
+
+    /// <summary>
+    /// Ensures that a paragraph or table larger than the target size cannot
+    /// produce an embedding request beyond Ollama's configured batch/context.
+    /// </summary>
+    private List<ChunkModel> NormalizeOversizedChunks(
+        List<ChunkModel> chunks,
+        string documentId,
+        int chunkSize,
+        int overlapSize)
+    {
+        var normalized = new List<ChunkModel>();
+        var step = Math.Max(1, chunkSize - Math.Min(overlapSize, chunkSize - 1));
+
+        foreach (var chunk in chunks)
+        {
+            var text = chunk.ChunkText ?? string.Empty;
+            if (text.Length <= chunkSize)
+            {
+                normalized.Add(chunk);
+                continue;
+            }
+
+            for (var start = 0; start < text.Length; start += step)
+            {
+                var length = Math.Min(chunkSize, text.Length - start);
+                var piece = text.Substring(start, length).Trim();
+                if (piece.Length == 0)
+                {
+                    continue;
+                }
+
+                normalized.Add(ChunkModel.Create(
+                    documentId: documentId,
+                    chunkIndex: normalized.Count,
+                    content: piece,
+                    startChar: chunk.StartChar + start,
+                    endChar: chunk.StartChar + start + piece.Length,
+                    metadata: chunk.ChunkMetadata,
+                    pageNumber: chunk.PageNumber,
+                    chunkType: chunk.ContentType));
+
+                if (start + length >= text.Length)
+                {
+                    break;
+                }
+            }
+        }
+
+        for (var index = 0; index < normalized.Count; index++)
+        {
+            normalized[index].ChunkIndex = index;
+        }
+
+        return normalized;
     }
 
     /// <summary>

@@ -112,7 +112,7 @@ public class SidebarWidthBugConditionTest
 }
 
 // Test runner
-public class Program
+public static class SidebarWidthBugConditionRunner
 {
     public static void Main(string[] args)
     {

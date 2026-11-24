@@ -9,7 +9,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-      - ./setup-mongodb-optimized.js:/docker-entrypoint-initdb.d/setup.js:ro
+      - ./setup-mongodb-canonical.js:/docker-entrypoint-initdb.d/setup.js:ro
     environment:
       - MONGO_INITDB_DATABASE=RagDatabase
     healthcheck:

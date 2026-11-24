@@ -2,7 +2,7 @@
 
 ## Visión General
 
-Esta guía describe la configuración de MongoDB optimizada para el sistema RAG (Retrieval Augmented Generation) con soporte para búsqueda vectorial, embeddings y metadata de documentos.
+Esta guía utiliza `setup-mongodb-canonical.js` como script canónico. El esquema persistido usa los nombres PascalCase de `MongoDB.Driver` (`FilePath`, `DocumentId`, `ChunkText`, etc.). En el perfil local actual la búsqueda vectorial indexada queda diferida; `/chat` utiliza similitud coseno en memoria. Las consultas `$vectorSearch` de esta guía son una referencia futura y no forman parte del smoke test de la fase 2.
 
 ---
 
@@ -150,7 +150,7 @@ mongosh "mongodb://localhost:27017"
 use("RagDatabase");
 
 // Ejecutar script
-load("setup-mongodb-optimized.js");
+load("setup-mongodb-canonical.js");
 ```
 
 ### Paso 3: Verificar
@@ -358,7 +358,7 @@ sudo apt-get install mongodb-mongosh
 db.chunks.getIndexes();
 
 // Re-ejecutar script de setup
-load("setup-mongodb-optimized.js");
+load("setup-mongodb-canonical.js");
 ```
 
 ### Error: "Dimension mismatch in vector search"

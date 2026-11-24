@@ -2,6 +2,8 @@ using BlazorApp.Services;
 using BlazorApp.Models;
 using MongoDB.Driver;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -17,7 +19,7 @@ public class RagOrchestratorTests
     private readonly Mock<DocumentProcessor> _mockDocumentProcessor;
     private readonly Mock<EnhancedRagService> _mockRagService;
     private readonly Mock<ChatSessionService> _mockChatSessionService;
-    private readonly Mock<ResponseFormatter> _mockResponseFormatter;
+    private readonly ResponseFormatter _responseFormatter;
     private readonly Mock<ILogger<RagOrchestrator>> _mockLogger;
     private readonly RagOrchestrator _orchestrator;
 
@@ -25,14 +27,14 @@ public class RagOrchestratorTests
     {
         var mockExtractors = new List<ITextExtractor>
         {
-            new PdfTextExtractor(),
-            new WordTextExtractor()
+            new PdfTextExtractor(NullLogger<PdfTextExtractor>.Instance),
+            new WordTextExtractor(NullLogger<WordTextExtractor>.Instance)
         };
 
         _mockDocumentProcessor = new Mock<DocumentProcessor>(
             mockExtractors,
             Mock.Of<Microsoft.SemanticKernel.Embeddings.ITextEmbeddingGenerationService>(),
-            Mock.Of<DocumentChunker>(),
+            new DocumentChunker(logger: NullLogger<DocumentChunker>.Instance),
             Mock.Of<IMongoDatabase>(),
             Mock.Of<IEmbeddingCache>(),
             Mock.Of<ILogger<DocumentProcessor>>());
@@ -42,14 +44,13 @@ public class RagOrchestratorTests
             Mock.Of<Microsoft.SemanticKernel.Embeddings.ITextEmbeddingGenerationService>(),
             Mock.Of<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>(),
             Mock.Of<ILogger<EnhancedRagService>>(),
-            Mock.Of<ResponseFormatter>());
+            new ResponseFormatter(NullLogger<ResponseFormatter>.Instance));
 
         _mockChatSessionService = new Mock<ChatSessionService>(
             Mock.Of<ILogger<ChatSessionService>>(),
             Mock.Of<IMongoDatabase>());
 
-        _mockResponseFormatter = new Mock<ResponseFormatter>(
-            Mock.Of<ILogger<ResponseFormatter>>());
+        _responseFormatter = new ResponseFormatter(NullLogger<ResponseFormatter>.Instance);
 
         _mockLogger = new Mock<ILogger<RagOrchestrator>>();
 
@@ -57,7 +58,7 @@ public class RagOrchestratorTests
             _mockDocumentProcessor.Object,
             _mockRagService.Object,
             _mockChatSessionService.Object,
-            _mockResponseFormatter.Object,
+            _responseFormatter,
             _mockLogger.Object);
     }
 
@@ -148,7 +149,7 @@ public class RagOrchestratorTests
         var response = "Este es el proceso respondido por el sistema RAG.";
         
         _mockRagService
-            .Setup(rs => rs.QueryAsync(query, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Setup(rs => rs.QueryAsync(query, It.IsAny<int>(), It.IsAny<bool>()))
             .ReturnsAsync(response);
 
         // Act
@@ -190,12 +191,11 @@ public class RagOrchestratorTests
         {
             Id = "session123",
             UserId = userId,
-            CreatedAt = DateTime.UtcNow,
-            MessageCount = 0
+            CreatedDate = DateTime.UtcNow
         };
 
         _mockChatSessionService
-            .Setup(cs => cs.CreateSessionAsync(userId))
+            .Setup(cs => cs.CreateSessionAsync(null, userId, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
         // Act
@@ -223,8 +223,8 @@ public class RagOrchestratorTests
         {
             Id = sessionId,
             UserId = userId,
-            CreatedAt = DateTime.UtcNow,
-            MessageCount = 5
+            CreatedDate = DateTime.UtcNow,
+            Messages = Enumerable.Range(0, 5).Select(_ => new ChatMessage()).ToList()
         };
 
         _mockChatSessionService

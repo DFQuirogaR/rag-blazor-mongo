@@ -47,7 +47,7 @@ public class ChatSessionService : IHostedService, IDisposable
     /// <summary>
     /// Crea una nueva sesión de chat
     /// </summary>
-    public async Task<ChatSession> CreateSessionAsync(
+    public virtual async Task<ChatSession> CreateSessionAsync(
         string? title = null,
         string? userId = null,
         List<string>? tags = null,
@@ -76,7 +76,7 @@ public class ChatSessionService : IHostedService, IDisposable
     /// <summary>
     /// Obtiene una sesión por ID
     /// </summary>
-    public async Task<ChatSession?> GetSessionAsync(
+    public virtual async Task<ChatSession?> GetSessionAsync(
         string sessionId,
         bool includeMessages = false,
         CancellationToken cancellationToken = default)
