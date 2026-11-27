@@ -1,0 +1,113 @@
+@page "/history"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = ApplicationPolicies.ChatUse)]
+@using BlazorApp.Models
+@using BlazorApp.Services
+@inject HistoryService HistoryService
+
+<PageTitle>Historial - Asistente RAG</PageTitle>
+
+<div class="query-page">
+    <section class="query-intro">
+        <span class="query-eyebrow"><i class="bi bi-clock-history"></i> Conversaciones</span>
+        <h1>Historial de consultas</h1>
+        <p>Busca, abre y administra tus sesiones guardadas.</p>
+    </section>
+
+    <section class="query-form" aria-label="Buscar historial">
+        <div class="query-input-row">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input class="message-input" @bind="search" @bind:event="oninput" placeholder="Buscar por título o contenido..." @onkeydown="HandleSearchKeyDown" />
+            <button type="button" class="btn-send" @onclick="SearchAsync">Buscar</button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    { <div class="alert alert-danger">@error</div> }
+
+    @if (sessions.Count == 0)
+    {
+        <div class="answer-card answer-empty"><h3>Aún no tienes sesiones</h3><p>Realiza una consulta desde Chat para crear la primera.</p></div>
+    }
+    else
+    {
+        <div class="history-list">
+            @foreach (var session in sessions)
+            {
+                <article class="history-item @(session.Status == SessionStatuses.Archived ? "history-archived" : "")">
+                    <a href="chat?sessionId=@session.Id" class="history-link">
+                        <span><i class="bi bi-chat-square-text"></i></span>
+                        <span><strong>@session.Title</strong><small>@session.Messages.Count mensajes · @session.Status · @session.LastActive.ToLocalTime().ToString("g")</small></span>
+                    </a>
+                    <div class="history-actions">
+                        @if (session.Status == SessionStatuses.Archived)
+                        { <button class="btn btn-sm btn-outline-secondary" @onclick="() => RestoreAsync(session.Id)">Restaurar</button> }
+                        else
+                        { <button class="btn btn-sm btn-outline-secondary" @onclick="() => ArchiveAsync(session.Id)">Archivar</button> }
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ExportAsync(session.Id, false)">JSON</button>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ExportAsync(session.Id, true)">Markdown</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(session.Id)">Eliminar</button>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(exportedContent))
+    {
+        <section class="answer-card export-panel"><h2>Exportación @exportedFormat</h2><textarea readonly rows="12">@exportedContent</textarea></section>
+    }
+</div>
+
+@code {
+    private List<ChatSession> sessions = new();
+    private string search = string.Empty;
+    private string? error;
+    private string? exportedContent;
+    private string? exportedFormat;
+    private int page = 1;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            error = null;
+            sessions = (await HistoryService.GetSessionsAsync(search, page)).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            sessions = new();
+        }
+    }
+
+    private async Task SearchAsync() { page = 1; await LoadAsync(); }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter") await SearchAsync();
+    }
+
+    private async Task ArchiveAsync(string id) { await RunOperationAsync(() => HistoryService.ArchiveAsync(id)); }
+    private async Task RestoreAsync(string id) { await RunOperationAsync(() => HistoryService.RestoreAsync(id)); }
+    private async Task DeleteAsync(string id) { await RunOperationAsync(() => HistoryService.DeleteAsync(id)); }
+
+    private async Task ExportAsync(string id, bool markdown)
+    {
+        try
+        {
+            error = null;
+            exportedContent = markdown ? await HistoryService.ExportMarkdownAsync(id) : await HistoryService.ExportJsonAsync(id);
+            exportedFormat = markdown ? "Markdown" : "JSON";
+        }
+        catch (Exception ex) { error = ex.Message; }
+    }
+
+    private async Task RunOperationAsync(Func<Task> operation)
+    {
+        try { error = null; await operation(); await LoadAsync(); }
+        catch (Exception ex) { error = ex.Message; }
+    }
+}

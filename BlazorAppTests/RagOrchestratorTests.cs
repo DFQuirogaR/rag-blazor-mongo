@@ -48,7 +48,8 @@ public class RagOrchestratorTests
 
         _mockChatSessionService = new Mock<ChatSessionService>(
             Mock.Of<ILogger<ChatSessionService>>(),
-            Mock.Of<IMongoDatabase>());
+            Mock.Of<IMongoDatabase>(),
+            new CurrentUserContext(Mock.Of<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>()));
 
         _responseFormatter = new ResponseFormatter(NullLogger<ResponseFormatter>.Instance);
 
@@ -195,7 +196,7 @@ public class RagOrchestratorTests
         };
 
         _mockChatSessionService
-            .Setup(cs => cs.CreateSessionAsync(null, userId, null, It.IsAny<CancellationToken>()))
+            .Setup(cs => cs.CreateSessionAsync())
             .ReturnsAsync(session);
 
         // Act

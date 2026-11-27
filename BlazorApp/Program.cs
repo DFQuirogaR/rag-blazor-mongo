@@ -54,6 +54,11 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 builder.Services.Configure<BlazorApp.Data.AuthenticationOptions>(
     builder.Configuration.GetSection("Authentication"));
 
+builder.Services.AddOptions<HistoryOptions>()
+    .Bind(builder.Configuration.GetSection(HistoryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(ApplicationPolicies.ChatUse, policy =>
@@ -112,7 +117,7 @@ builder.Services.AddSingleton<Microsoft.SemanticKernel.ChatCompletion.IChatCompl
     var chatHttpClient = new HttpClient
     {
         BaseAddress = new Uri(ollamaEndpoint),
-        Timeout = TimeSpan.FromMinutes(5)
+        Timeout = System.Threading.Timeout.InfiniteTimeSpan
     };
     return new OllamaChatService(chatHttpClient, ollamaModel, logger);
 });
@@ -124,7 +129,7 @@ builder.Services.AddSingleton<Microsoft.SemanticKernel.Embeddings.ITextEmbedding
     var embeddingHttpClient = new HttpClient
     {
         BaseAddress = new Uri(ollamaEndpoint),
-        Timeout = TimeSpan.FromMinutes(5)
+        Timeout = System.Threading.Timeout.InfiniteTimeSpan
     };
     return new OllamaEmbeddingService(embeddingHttpClient, embeddingModel, logger);
 });
@@ -140,10 +145,11 @@ builder.Services.AddSingleton<DocumentManagementService>();
 builder.Services.AddSingleton<EnhancedRagService>();
 builder.Services.AddSingleton<ResponseFormatter>();
 builder.Services.AddSingleton<IEmbeddingCache, EmbeddingCacheService>();
-builder.Services.AddSingleton<RagOrchestrator>();
+builder.Services.AddScoped<RagOrchestrator>();
 
-// Register chat session service
-builder.Services.AddSingleton<ChatSessionService>();
+// Register chat session persistence in the authenticated circuit scope.
+builder.Services.AddScoped<ChatSessionService>();
+builder.Services.AddScoped<HistoryService>();
 
 // Register document scanner configuration
 builder.Services.Configure<DocumentScannerOptions>(builder.Configuration.GetSection("DocumentSettings"));
@@ -162,6 +168,7 @@ using (var scope = app.Services.CreateScope())
     var identityDatabase = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await identityDatabase.Database.EnsureCreatedAsync();
     await scope.ServiceProvider.GetRequiredService<DevelopmentIdentitySeeder>().SeedAsync();
+    await scope.ServiceProvider.GetRequiredService<ChatSessionService>().ConfigureIndexesAsync();
 }
 
 // Configure middleware pipeline
@@ -180,6 +187,17 @@ app.UseWebSockets();
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/" && context.User.Identity?.IsAuthenticated != true)
+    {
+        var returnUrl = context.Request.PathBase + context.Request.Path + context.Request.QueryString;
+        context.Response.Redirect($"/Identity/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}");
+        return;
+    }
+
+    await next();
+});
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health");

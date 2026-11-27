@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Timers;
+using System.Text.RegularExpressions;
 
 namespace BlazorApp.Services;
 
@@ -15,8 +16,10 @@ public class ChatSessionService : IHostedService, IDisposable
 {
     private readonly ILogger<ChatSessionService> _logger;
     private readonly IMongoDatabase _database;
+    private readonly CurrentUserContext _currentUser;
     private readonly System.Timers.Timer _cleanupTimer;
     private bool _isDisposed;
+    private bool? _supportsTransactions;
 
     private IMongoCollection<ChatSession> SessionsCollection => _database.GetCollection<ChatSession>("chat_sessions");
     private IMongoCollection<ChatMessage> MessagesCollection => _database.GetCollection<ChatMessage>("chat_messages");
@@ -36,12 +39,20 @@ public class ChatSessionService : IHostedService, IDisposable
     /// </summary>
     public ChatSessionService(
         ILogger<ChatSessionService> logger,
-        IMongoDatabase database)
+        IMongoDatabase database,
+        CurrentUserContext currentUser)
     {
         _logger = logger;
         _database = database;
+        _currentUser = currentUser;
         _cleanupTimer = new System.Timers.Timer();
         _cleanupTimer.Elapsed += CleanupTimer_Elapsed;
+    }
+
+    private async Task<Data.ApplicationActor> RequireOwnerAsync()
+    {
+        return await _currentUser.GetActorAsync()
+            ?? throw new UnauthorizedAccessException("El usuario debe iniciar sesión.");
     }
 
     /// <summary>
@@ -49,21 +60,20 @@ public class ChatSessionService : IHostedService, IDisposable
     /// </summary>
     public virtual async Task<ChatSession> CreateSessionAsync(
         string? title = null,
-        string? userId = null,
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
             var session = ChatSession.Create(
                 title: title ?? "Nueva sesión de chat",
-                userId: userId,
+                userId: actor.UserId,
                 tags: tags ?? new List<string>());
+            session.OwnerEmailSnapshot = actor.Email;
 
             await SessionsCollection.InsertOneAsync(session, cancellationToken: cancellationToken);
-            
             _logger.LogInformation("Nueva sesión creada: {SessionId}", session.Id);
-            
             return session;
         }
         catch (Exception ex)
@@ -81,11 +91,14 @@ public class ChatSessionService : IHostedService, IDisposable
         bool includeMessages = false,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
-            var session = await SessionsCollection
-                .Find(s => s.Id == sessionId)
-                .FirstOrDefaultAsync(cancellationToken);
+            var filter = Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.Id, sessionId),
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+                Builders<ChatSession>.Filter.Ne(s => s.Status, SessionStatuses.Deleted));
+            var session = await SessionsCollection.Find(filter).FirstOrDefaultAsync(cancellationToken);
 
             if (session != null && includeMessages)
             {
@@ -105,22 +118,21 @@ public class ChatSessionService : IHostedService, IDisposable
     /// Obtiene todas las sesiones de un usuario
     /// </summary>
     public async Task<List<ChatSession>> GetUserSessionsAsync(
-        string? userId = null,
         int page = 1,
         int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 50);
         try
         {
-            var filter = userId == null
-                ? Builders<ChatSession>.Filter.Empty
-                : Builders<ChatSession>.Filter.Eq(s => s.UserId, userId);
-
-            var sessions = await SessionsCollection
-                .Find(filter)
+            var filter = Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+                Builders<ChatSession>.Filter.Ne(s => s.Status, SessionStatuses.Deleted));
+            var sessions = await SessionsCollection.Find(filter)
                 .SortByDescending(s => s.LastActive)
-                .Skip((page - 1) * pageSize)
-                .Limit(pageSize)
+                .Skip((page - 1) * pageSize).Limit(pageSize)
                 .ToListAsync(cancellationToken);
 
             // Cargar mensajes si hay sesiones
@@ -128,7 +140,9 @@ public class ChatSessionService : IHostedService, IDisposable
             {
                 var sessionIds = sessions.Select(s => s.Id).ToList();
                 var messages = await MessagesCollection
-                    .Find(m => sessionIds.Contains(m.SessionId))
+                    .Find(Builders<ChatMessage>.Filter.And(
+                        Builders<ChatMessage>.Filter.In(m => m.SessionId, sessionIds),
+                        Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId)))
                     .ToListAsync(cancellationToken);
 
                 // Agrupar mensajes por sesión
@@ -149,7 +163,7 @@ public class ChatSessionService : IHostedService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al obtener sesiones del usuario: {UserId}", userId);
+            _logger.LogError(ex, "Error al obtener sesiones del usuario: {UserId}", actor.UserId);
             throw;
         }
     }
@@ -161,10 +175,13 @@ public class ChatSessionService : IHostedService, IDisposable
         ChatSession session,
         CancellationToken cancellationToken)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
             var messages = await MessagesCollection
-                .Find(m => m.SessionId == session.Id)
+                .Find(Builders<ChatMessage>.Filter.And(
+                    Builders<ChatMessage>.Filter.Eq(m => m.SessionId, session.Id),
+                    Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId)))
                 .SortBy(m => m.Timestamp)
                 .ToListAsync(cancellationToken);
 
@@ -187,10 +204,20 @@ public class ChatSessionService : IHostedService, IDisposable
         int limit = 50,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
+            // A deleted session is not readable, including through direct message queries.
+            var session = await GetSessionAsync(sessionId, includeMessages: false, cancellationToken: cancellationToken);
+            if (session is null)
+            {
+                return new List<ChatMessage>();
+            }
+
             var messages = await MessagesCollection
-                .Find(m => m.SessionId == sessionId)
+                .Find(Builders<ChatMessage>.Filter.And(
+                    Builders<ChatMessage>.Filter.Eq(m => m.SessionId, sessionId),
+                    Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId)))
                 .SortBy(m => m.Timestamp)
                 .Skip(skip)
                 .Limit(limit)
@@ -212,21 +239,27 @@ public class ChatSessionService : IHostedService, IDisposable
         ChatMessage message,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
-            // Verificar que la sesión existe
+            // Resolve the session through the owner-filtered query and never trust UI ownership fields.
             var session = await GetSessionAsync(message.SessionId, false, cancellationToken);
             if (session == null)
-            {
                 throw new InvalidOperationException($"La sesión {message.SessionId} no existe");
-            }
 
-            // Insertar el mensaje
+            message.OwnerUserId = actor.UserId;
+            message.SessionId = session.Id;
+            message.MessageIndex = (int)await MessagesCollection.CountDocumentsAsync(
+                Builders<ChatMessage>.Filter.And(
+                    Builders<ChatMessage>.Filter.Eq(m => m.SessionId, session.Id),
+                    Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId)),
+                cancellationToken: cancellationToken);
             await MessagesCollection.InsertOneAsync(message, cancellationToken: cancellationToken);
 
-            // Actualizar timestamp de última actividad
             await SessionsCollection.UpdateOneAsync(
-                s => s.Id == message.SessionId,
+                Builders<ChatSession>.Filter.And(
+                    Builders<ChatSession>.Filter.Eq(s => s.Id, session.Id),
+                    Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId)),
                 Builders<ChatSession>.Update.Set(s => s.LastActive, DateTime.UtcNow),
                 cancellationToken: cancellationToken);
 
@@ -249,9 +282,13 @@ public class ChatSessionService : IHostedService, IDisposable
         ChatSession session,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
-            var filter = Builders<ChatSession>.Filter.Eq(s => s.Id, session.Id);
+            var filter = Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.Id, session.Id),
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+                Builders<ChatSession>.Filter.Ne(s => s.Status, SessionStatuses.Deleted));
             var update = Builders<ChatSession>.Update
                 .Set(s => s.Title, session.Title)
                 .Set(s => s.LastActive, session.LastActive)
@@ -274,83 +311,86 @@ public class ChatSessionService : IHostedService, IDisposable
     /// <summary>
     /// Archiva una sesión
     /// </summary>
-    public async Task ArchiveSessionAsync(
-        string sessionId,
-        CancellationToken cancellationToken = default)
+    public async Task ArchiveSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var update = Builders<ChatSession>.Update
-                .Set(s => s.Metadata.CustomProperties["status"], "archived")
-                .Set(s => s.LastActive, DateTime.UtcNow);
-
-            await SessionsCollection.UpdateOneAsync(
-                s => s.Id == sessionId,
-                update,
-                cancellationToken: cancellationToken);
-
-            _logger.LogInformation("Sesión archivada: {SessionId}", sessionId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al archivar sesión: {SessionId}", sessionId);
-            throw;
-        }
+        var actor = await RequireOwnerAsync();
+        await SessionsCollection.UpdateOneAsync(
+            Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.Id, sessionId),
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+                Builders<ChatSession>.Filter.Ne(s => s.Status, SessionStatuses.Deleted)),
+            Builders<ChatSession>.Update.Set(s => s.Status, SessionStatuses.Archived)
+                .Set(s => s.LastActive, DateTime.UtcNow), cancellationToken: cancellationToken);
     }
 
     /// <summary>
     /// Recupera una sesión archivada
     /// </summary>
-    public async Task RestoreSessionAsync(
-        string sessionId,
-        CancellationToken cancellationToken = default)
+    public async Task RestoreSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var update = Builders<ChatSession>.Update
-                .Unset(s => s.Metadata.CustomProperties["status"])
-                .Set(s => s.LastActive, DateTime.UtcNow);
-
-            await SessionsCollection.UpdateOneAsync(
-                s => s.Id == sessionId,
-                update,
-                cancellationToken: cancellationToken);
-
-            _logger.LogInformation("Sesión restaurada: {SessionId}", sessionId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al restaurar sesión: {SessionId}", sessionId);
-            throw;
-        }
+        var actor = await RequireOwnerAsync();
+        await SessionsCollection.UpdateOneAsync(
+            Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.Id, sessionId),
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+                Builders<ChatSession>.Filter.Eq(s => s.Status, SessionStatuses.Archived)),
+            Builders<ChatSession>.Update.Set(s => s.Status, SessionStatuses.Active)
+                .Set(s => s.LastActive, DateTime.UtcNow), cancellationToken: cancellationToken);
     }
 
     /// <summary>
     /// Elimina una sesión y sus mensajes
     /// </summary>
-    public async Task DeleteSessionAsync(
-        string sessionId,
-        CancellationToken cancellationToken = default)
+    public async Task DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
+        var sessionFilter = Builders<ChatSession>.Filter.And(
+            Builders<ChatSession>.Filter.Eq(s => s.Id, sessionId),
+            Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+            Builders<ChatSession>.Filter.Ne(s => s.Status, SessionStatuses.Deleted));
+
+        // Without a replica set MongoDB cannot atomically delete both collections.
+        // Marking the owner-scoped session deleted keeps the messages inaccessible and coherent.
+        if (!await SupportsTransactionsAsync(cancellationToken))
+        {
+            await SessionsCollection.UpdateOneAsync(sessionFilter,
+                Builders<ChatSession>.Update.Set(s => s.Status, SessionStatuses.Deleted),
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        using var session = await _database.Client.StartSessionAsync(cancellationToken: cancellationToken);
+        session.StartTransaction();
         try
         {
-            // Eliminar mensajes primero
-            await MessagesCollection.DeleteManyAsync(
-                m => m.SessionId == sessionId,
-                cancellationToken);
-
-            // Eliminar sesión
-            await SessionsCollection.DeleteOneAsync(
-                s => s.Id == sessionId,
-                cancellationToken);
-
-            _logger.LogInformation("Sesión eliminada: {SessionId}", sessionId);
+            await MessagesCollection.DeleteManyAsync(session,
+                Builders<ChatMessage>.Filter.And(
+                    Builders<ChatMessage>.Filter.Eq(m => m.SessionId, sessionId),
+                    Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId)),
+                cancellationToken: cancellationToken);
+            await SessionsCollection.DeleteOneAsync(session, sessionFilter, cancellationToken: cancellationToken);
+            await session.CommitTransactionAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex, "Error al eliminar sesión: {SessionId}", sessionId);
+            await session.AbortTransactionAsync(cancellationToken);
             throw;
         }
+    }
+
+    private async Task<bool> SupportsTransactionsAsync(CancellationToken cancellationToken)
+    {
+        if (_supportsTransactions.HasValue) return _supportsTransactions.Value;
+        try
+        {
+            var hello = await _database.RunCommandAsync<BsonDocument>(new BsonDocument("hello", 1), cancellationToken: cancellationToken);
+            _supportsTransactions = hello.Contains("setName") || hello.GetValue("msg", "").AsString == "isdbgrid";
+        }
+        catch (MongoCommandException)
+        {
+            _supportsTransactions = false;
+        }
+        return _supportsTransactions.Value;
     }
 
     /// <summary>
@@ -358,33 +398,30 @@ public class ChatSessionService : IHostedService, IDisposable
     /// </summary>
     public async Task<List<ChatSession>> SearchSessionsAsync(
         string query,
-        string? userId = null,
         int page = 1,
         int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
-            var filter = Builders<ChatSession>.Filter.Empty;
+            var filter = Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
+                Builders<ChatSession>.Filter.Ne(s => s.Status, SessionStatuses.Deleted));
 
             if (!string.IsNullOrWhiteSpace(query))
             {
-                var queryRegex = new MongoDB.Bson.BsonRegularExpression(query, "i");
-                var titleFilter = Builders<ChatSession>.Filter.Regex(s => s.Title, queryRegex);
-                
-                // Buscar también en contenido de mensajes
-                var messageContentFilter = Builders<ChatSession>.Filter.ElemMatch(
-                    s => s.Messages,
-                    m => m.Content.Contains(query));
-
-                filter = Builders<ChatSession>.Filter.Or(titleFilter, messageContentFilter);
-            }
-
-            if (!string.IsNullOrWhiteSpace(userId))
-            {
-                filter = Builders<ChatSession>.Filter.And(
-                    filter,
-                    Builders<ChatSession>.Filter.Eq(s => s.UserId, userId));
+                var escaped = Regex.Escape(query);
+                var titleFilter = Builders<ChatSession>.Filter.Regex(
+                    s => s.Title, new BsonRegularExpression(escaped, "i"));
+                var messageIds = await MessagesCollection.Find(
+                    Builders<ChatMessage>.Filter.And(
+                        Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId),
+                        Builders<ChatMessage>.Filter.Regex(m => m.Content, new BsonRegularExpression(escaped, "i"))))
+                    .Project(m => m.SessionId).ToListAsync(cancellationToken);
+                filter = Builders<ChatSession>.Filter.And(filter,
+                    Builders<ChatSession>.Filter.Or(titleFilter,
+                        Builders<ChatSession>.Filter.In(s => s.Id, messageIds.Distinct())));
             }
 
             var sessions = await SessionsCollection
@@ -410,18 +447,14 @@ public class ChatSessionService : IHostedService, IDisposable
         TimeSpan? maxAge = null,
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
         try
         {
             var cutoffDate = DateTime.UtcNow.Subtract(maxAge ?? MaxInactiveAge);
-            
-            // Buscar sesiones inactivas que no tengan status "archived"
             var filter = Builders<ChatSession>.Filter.And(
+                Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId),
                 Builders<ChatSession>.Filter.Lt(s => s.LastActive, cutoffDate),
-                Builders<ChatSession>.Filter.Or(
-                    Builders<ChatSession>.Filter.Eq(s => s.Metadata.CustomProperties["status"], "archived"),
-                    Builders<ChatSession>.Filter.Not(Builders<ChatSession>.Filter.Exists(s => s.Metadata.CustomProperties["status"]))
-                )
-            );
+                Builders<ChatSession>.Filter.Eq(s => s.Status, SessionStatuses.Active));
 
             var oldSessions = await SessionsCollection
                 .Find(filter)
@@ -574,35 +607,25 @@ public class ChatSessionService : IHostedService, IDisposable
     public async Task<SessionStatistics> GetSessionStatisticsAsync(
         CancellationToken cancellationToken = default)
     {
+        var actor = await RequireOwnerAsync();
+        var ownerSessionFilter = Builders<ChatSession>.Filter.Eq(s => s.OwnerUserId, actor.UserId);
+        var ownerMessageFilter = Builders<ChatMessage>.Filter.Eq(m => m.OwnerUserId, actor.UserId);
         try
         {
-            var totalSessions = await SessionsCollection.CountDocumentsAsync(_ => true, cancellationToken: cancellationToken);
+            var totalSessions = await SessionsCollection.CountDocumentsAsync(ownerSessionFilter, cancellationToken: cancellationToken);
             var archivedSessions = await SessionsCollection.CountDocumentsAsync(
-                s => s.Metadata != null && s.Metadata.CustomProperties != null && s.Metadata.CustomProperties["status"] == "archived",
+                Builders<ChatSession>.Filter.And(ownerSessionFilter, Builders<ChatSession>.Filter.Eq(s => s.Status, SessionStatuses.Archived)),
                 cancellationToken: cancellationToken);
-            var totalMessages = await MessagesCollection.CountDocumentsAsync(_ => true, cancellationToken: cancellationToken);
+            var totalMessages = await MessagesCollection.CountDocumentsAsync(ownerMessageFilter, cancellationToken: cancellationToken);
 
-            var oldestSession = await SessionsCollection
-                .Find(_ => true)
-                .SortBy(s => s.CreatedDate)
-                .Limit(1)
-                .FirstOrDefaultAsync(cancellationToken);
+            var oldestSession = await SessionsCollection.Find(ownerSessionFilter).SortBy(s => s.CreatedDate).Limit(1).FirstOrDefaultAsync(cancellationToken);
+            var newestSession = await SessionsCollection.Find(ownerSessionFilter).SortByDescending(s => s.CreatedDate).Limit(1).FirstOrDefaultAsync(cancellationToken);
 
-            var newestSession = await SessionsCollection
-                .Find(_ => true)
-                .SortByDescending(s => s.CreatedDate)
-                .Limit(1)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            // Obtener promedio de mensajes por sesión (conteo agrupado por SessionId)
-            var messageCountsBySession = await MessagesCollection
-                .Aggregate()
-                .Group(m => m.SessionId, g => new { SessionId = g.Key, MessageCount = g.Count() })
-                .ToListAsync(cancellationToken);
-
-            var avgMessagesPerSession = messageCountsBySession.Any() 
-                ? messageCountsBySession.Average(s => s.MessageCount) 
-                : 0;
+            var messageCountsBySession = await MessagesCollection.Find(ownerMessageFilter)
+                .Project(m => m.SessionId).ToListAsync(cancellationToken);
+            var avgMessagesPerSession = messageCountsBySession.Count == 0
+                ? 0
+                : messageCountsBySession.GroupBy(id => id).Average(group => group.Count());
 
             return new SessionStatistics
             {
@@ -628,37 +651,17 @@ public class ChatSessionService : IHostedService, IDisposable
     {
         try
         {
-            // Índice TTL para limpieza automática de sesiones inactivas (30 días)
-            var ttlIndexOptions = new CreateIndexOptions
-            {
-                ExpireAfter = TimeSpan.FromDays(30)
-            };
+            var sessionIndex = new CreateIndexModel<ChatSession>(
+                Builders<ChatSession>.IndexKeys.Ascending(s => s.OwnerUserId)
+                    .Ascending(s => s.Status).Descending(s => s.LastActive),
+                new CreateIndexOptions { Name = "owner_status_last_active_v2" });
+            await SessionsCollection.Indexes.CreateOneAsync(sessionIndex, cancellationToken: cancellationToken);
 
-            var ttlIndexDefinition = Builders<ChatSession>.IndexKeys.Ascending(s => s.LastActive);
-
-            var ttlIndexModel = new CreateIndexModel<ChatSession>(
-                ttlIndexDefinition,
-                new CreateIndexOptions
-                {
-                    Background = true,
-                    ExpireAfter = TimeSpan.FromDays(30)
-                });
-
-            await SessionsCollection.Indexes.CreateOneAsync(ttlIndexModel, cancellationToken: cancellationToken);
-
-            // Índice para búsqueda por usuario
-            var userIndexModel = new CreateIndexModel<ChatSession>(
-                Builders<ChatSession>.IndexKeys.Ascending(s => s.UserId).Ascending(s => s.LastActive),
-                new CreateIndexOptions { Background = true });
-
-            await SessionsCollection.Indexes.CreateOneAsync(userIndexModel, cancellationToken: cancellationToken);
-
-            // Índice para búsqueda de mensajes por sesión
-            var messageIndexModel = new CreateIndexModel<ChatMessage>(
-                Builders<ChatMessage>.IndexKeys.Ascending(m => m.SessionId).Ascending(m => m.Timestamp),
-                new CreateIndexOptions { Background = true });
-
-            await MessagesCollection.Indexes.CreateOneAsync(messageIndexModel, cancellationToken: cancellationToken);
+            var messageIndex = new CreateIndexModel<ChatMessage>(
+                Builders<ChatMessage>.IndexKeys.Ascending(m => m.OwnerUserId)
+                    .Ascending(m => m.SessionId).Ascending(m => m.Timestamp),
+                new CreateIndexOptions { Name = "owner_session_timestamp_v2" });
+            await MessagesCollection.Indexes.CreateOneAsync(messageIndex, cancellationToken: cancellationToken);
 
             _logger.LogInformation("Índices de MongoDB configurados correctamente");
         }

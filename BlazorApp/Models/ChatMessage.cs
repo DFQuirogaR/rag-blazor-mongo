@@ -22,14 +22,26 @@ public class ChatMessage
     /// Reference to the parent ChatSession.
     /// </summary>
     [Required]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string SessionId { get; set; } = ObjectId.GenerateNewId().ToString();
+    [BsonElement("sessionId")]
+    public string SessionId { get; set; } = Guid.NewGuid().ToString();
+
+    [BsonElement("messageIndex")]
+    public int MessageIndex { get; set; }
+
+    /// <summary>Owner copied from the session for mandatory message-level isolation.</summary>
+    [Required]
+    public string OwnerUserId { get; set; } = string.Empty;
+
+    /// <summary>Correlates the user query with its response or failed attempt.</summary>
+    [Required]
+    public string EntryId { get; set; } = Guid.NewGuid().ToString("N");
 
     /// <summary>
     /// Role of the message sender (user or assistant).
     /// </summary>
     [Required]
     [StringLength(20, ErrorMessage = "Role cannot exceed 20 characters.")]
+    [BsonElement("role")]
     public string Role { get; set; } = string.Empty;
 
     /// <summary>
@@ -37,13 +49,35 @@ public class ChatMessage
     /// </summary>
     [Required]
     [StringLength(100000, ErrorMessage = "Content cannot exceed 100000 characters.")]
+    [BsonElement("content")]
     public string Content { get; set; } = string.Empty;
 
     /// <summary>
     /// Timestamp when the message was created.
     /// </summary>
     [Required]
+    [BsonElement("timestamp")]
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    [BsonIgnore]
+    public DateTime TimestampUtc
+    {
+        get => Timestamp;
+        set => Timestamp = value;
+    }
+
+    /// <summary>Outcome of this persisted attempt.</summary>
+    public string EntryStatus { get; set; } = EntryStatuses.Pending;
+
+    public bool IsReusable { get; set; } = true;
+    public string? ResponseLocale { get; set; }
+    public string? FailureCode { get; set; }
+    public string? FailureReason { get; set; }
+
+    /// <summary>Structured references; SourceDocuments remains for legacy consumers.</summary>
+    public List<SourceReference> Sources { get; set; } = new();
+    public Dictionary<string, string> ModelMetadata { get; set; } = new();
+    public HistoryEntryMetadata? EntryMetadata { get; set; }
 
     /// <summary>
     /// Source documents referenced in this message (for RAG context).
@@ -62,13 +96,17 @@ public class ChatMessage
     /// <param name="sessionId">The parent session ID.</param>
     /// <param name="sourceDocuments">Optional list of source document IDs.</param>
     /// <returns>A new ChatMessage instance representing a user message.</returns>
-    public static ChatMessage CreateUserMessage(string content, string sessionId, List<string>? sourceDocuments = null)
+    public static ChatMessage CreateUserMessage(string content, string sessionId, List<string>? sourceDocuments = null, string? ownerUserId = null, string? entryId = null)
     {
         return new ChatMessage
         {
             Role = "user",
             Content = content,
             SessionId = sessionId,
+            OwnerUserId = ownerUserId ?? string.Empty,
+            EntryId = entryId ?? Guid.NewGuid().ToString("N"),
+            EntryStatus = EntryStatuses.Pending,
+            IsReusable = true,
             Timestamp = DateTime.UtcNow,
             SourceDocuments = sourceDocuments
         };
@@ -82,15 +120,20 @@ public class ChatMessage
     /// <param name="sourceDocuments">Optional list of source document IDs.</param>
     /// <param name="metadata">Optional metadata about the message.</param>
     /// <returns>A new ChatMessage instance representing an assistant message.</returns>
-    public static ChatMessage CreateAssistantMessage(string content, string sessionId, List<string>? sourceDocuments = null, MessageMetadata? metadata = null)
+    public static ChatMessage CreateAssistantMessage(string content, string sessionId, List<string>? sourceDocuments = null, MessageMetadata? metadata = null, string? ownerUserId = null, string? entryId = null, IEnumerable<SourceReference>? sources = null)
     {
         return new ChatMessage
         {
             Role = "assistant",
             Content = content,
             SessionId = sessionId,
+            OwnerUserId = ownerUserId ?? string.Empty,
+            EntryId = entryId ?? Guid.NewGuid().ToString("N"),
+            EntryStatus = EntryStatuses.Completed,
+            IsReusable = true,
             Timestamp = DateTime.UtcNow,
             SourceDocuments = sourceDocuments,
+            Sources = sources?.ToList() ?? new List<SourceReference>(),
             Metadata = metadata
         };
     }
@@ -101,13 +144,17 @@ public class ChatMessage
     /// <param name="content">The message content.</param>
     /// <param name="sessionId">The parent session ID.</param>
     /// <returns>A new ChatMessage instance representing a system message.</returns>
-    public static ChatMessage CreateSystemMessage(string content, string sessionId)
+    public static ChatMessage CreateSystemMessage(string content, string sessionId, string? ownerUserId = null, string? entryId = null, string entryStatus = EntryStatuses.Failed)
     {
         return new ChatMessage
         {
             Role = "system",
             Content = content,
             SessionId = sessionId,
+            OwnerUserId = ownerUserId ?? string.Empty,
+            EntryId = entryId ?? Guid.NewGuid().ToString("N"),
+            EntryStatus = entryStatus,
+            IsReusable = false,
             Timestamp = DateTime.UtcNow
         };
     }
@@ -152,4 +199,28 @@ public class MessageMetadata
     /// Optional custom metadata.
     /// </summary>
     public Dictionary<string, string>? CustomMetadata { get; set; }
+}
+
+/// <summary>Lifecycle values for a correlated history entry.</summary>
+public static class EntryStatuses
+{
+    public const string Pending = "pending";
+    public const string Completed = "completed";
+    public const string Invalid = "invalid";
+    public const string Cancelled = "cancelled";
+    public const string TimedOut = "timed-out";
+    public const string Failed = "failed";
+}
+
+/// <summary>Metadata shared by the query and response messages in an entry.</summary>
+public sealed class HistoryEntryMetadata
+{
+    public string EntryId { get; set; } = string.Empty;
+    public string? ResponseLocale { get; set; }
+    public string EntryStatus { get; set; } = EntryStatuses.Pending;
+    public bool IsReusable { get; set; } = true;
+    public string? FailureCode { get; set; }
+    public string? FailureReason { get; set; }
+    public List<SourceReference> Sources { get; set; } = new();
+    public Dictionary<string, string> ModelMetadata { get; set; } = new();
 }

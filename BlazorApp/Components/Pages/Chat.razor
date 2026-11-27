@@ -1,10 +1,9 @@
 @page "/chat"
+@rendermode InteractiveServer
 @attribute [Authorize(Policy = ApplicationPolicies.ChatUse)]
-@using Microsoft.AspNetCore.Components.Web
-@using Microsoft.AspNetCore.Components
+@using BlazorApp.Models
 @using BlazorApp.Services
-@using BlazorApp.Components
-@inject RagService RagService
+@inject HistoryService HistoryService
 @inject ILogger<Chat> Logger
 
 <PageTitle>Consulta - Asistente RAG</PageTitle>
@@ -16,18 +15,23 @@
         <p>Escribe una consulta y obtén una respuesta basada en la documentación oficial.</p>
     </section>
 
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
     <section class="query-form" aria-label="Nueva consulta">
         <div class="query-input-row">
             <i class="bi bi-search" aria-hidden="true"></i>
             <textarea class="message-input"
                       @bind="currentMessage"
                       @bind:event="oninput"
-                      @onkeydown="HandleKeyDown"
+                      @onkeyup="HandleKeyUp"
                       disabled="@isLoading"
                       rows="1"
                       maxlength="2000"
                       placeholder="Escribe tu pregunta aquí..."></textarea>
-            <button class="btn-send"
+            <button type="button" class="btn-send"
                     @onclick="SendMessage"
                     disabled="@(isLoading || string.IsNullOrWhiteSpace(currentMessage))">
                 @if (isLoading)
@@ -42,7 +46,7 @@
             </button>
         </div>
         <div class="query-form-footer">
-            <span><i class="bi bi-lightbulb"></i> Presiona Enter para consultar. Usa Shift+Enter para una nueva línea.</span>
+            <span><i class="bi bi-lightbulb"></i> Presiona Enter para consultar.</span>
             <span class="char-count">@currentMessage.Length / 2000</span>
         </div>
     </section>
@@ -55,7 +59,7 @@
             </div>
             @if (!string.IsNullOrWhiteSpace(currentResponse))
             {
-                <button class="clear-answer" @onclick="ClearAnswer" title="Limpiar respuesta">
+                <button type="button" class="clear-answer" @onclick="ClearAnswer" title="Limpiar respuesta">
                     <i class="bi bi-arrow-counterclockwise"></i>
                     <span>Nueva consulta</span>
                 </button>
@@ -72,7 +76,7 @@
         }
         else if (!string.IsNullOrWhiteSpace(currentResponse))
         {
-            <div class="answer-card answer-sweep" @key="responseVersion">
+            <div class="answer-card answer-sweep">
                 <div class="answer-card-header">
                     <div class="answer-status"><i class="bi bi-check-circle-fill"></i> Respuesta encontrada</div>
                     @if (!string.IsNullOrWhiteSpace(submittedQuery))
@@ -83,6 +87,24 @@
                 <div class="answer-content">
                     <MarkdownRenderer Content="@currentResponse" ShowActions="true" />
                 </div>
+
+                @if (sources.Count > 0)
+                {
+                    <div class="answer-sources">
+                        <h3><i class="bi bi-journal-text"></i> Documentos consultados</h3>
+                        <ul>
+                            @foreach (var source in sources)
+                            {
+                                <li>
+                                    <strong>@source.StoredDocumentName</strong>
+                                    @if (source.Page.HasValue) { <span> · página @source.Page</span> }
+                                    @if (!string.IsNullOrWhiteSpace(source.Section)) { <span> · @source.Section</span> }
+                                    @if (source.Relevance.HasValue) { <small> · relevancia @source.Relevance.Value.ToString("P0")</small> }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
             </div>
         }
         else
@@ -97,60 +119,94 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "sessionId")]
+    public string? SessionId { get; set; }
+
     [SupplyParameterFromQuery(Name = "query")]
     public string? InitialQuery { get; set; }
 
     private string currentMessage = string.Empty;
     private string? currentResponse;
     private string? submittedQuery;
+    private string sessionTitle = "Nueva sesión";
     private bool isLoading;
-    private int responseVersion;
-    private bool initialQuerySent;
+    private bool initialQueryLoaded;
+    private string? loadedSessionId;
+    private string? errorMessage;
+    private List<SourceReference> sources = new();
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!initialQuerySent && !string.IsNullOrWhiteSpace(InitialQuery))
+        if (SessionId != loadedSessionId)
         {
-            initialQuerySent = true;
-            currentMessage = InitialQuery;
-            await SendMessage();
+            loadedSessionId = SessionId;
+            await LoadLatestEntryAsync();
+        }
+
+        if (!initialQueryLoaded && !string.IsNullOrWhiteSpace(InitialQuery))
+        {
+            initialQueryLoaded = true;
+            currentMessage = InitialQuery.Trim();
+            errorMessage = null;
+        }
+    }
+
+    private async Task LoadLatestEntryAsync()
+    {
+        currentResponse = null;
+        submittedQuery = null;
+        sources = new();
+        if (string.IsNullOrWhiteSpace(SessionId)) return;
+
+        var session = await HistoryService.GetSessionAsync(SessionId);
+        if (session is null) return;
+
+        sessionTitle = session.Title;
+        var messages = session.Messages.OrderBy(message => message.Timestamp).ToList();
+        var assistant = messages.LastOrDefault(message => message.Role == "assistant");
+        var user = assistant is null
+            ? messages.LastOrDefault(message => message.Role == "user")
+            : messages.LastOrDefault(message => message.Role == "user" && message.Timestamp <= assistant.Timestamp);
+
+        if (assistant is not null && assistant.IsReusable)
+        {
+            submittedQuery = user?.Content;
+            currentResponse = assistant.Content;
+            sources = assistant.Sources.ToList();
         }
     }
 
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(currentMessage) || isLoading)
-        {
-            return;
-        }
-
-        var userMessage = currentMessage.Trim();
+        if (string.IsNullOrWhiteSpace(currentMessage) || isLoading) return;
+        var query = currentMessage.Trim();
         currentMessage = string.Empty;
-        submittedQuery = userMessage;
-        currentResponse = null;
-        responseVersion++;
+        errorMessage = null;
         isLoading = true;
-        StateHasChanged();
 
         try
         {
-            Logger.LogInformation("Calling RAG service with query: {Query}", userMessage);
-            currentResponse = await RagService.QueryAsync(userMessage);
+            var result = await HistoryService.SubmitAsync(query, SessionId);
+            SessionId = result.SessionId;
+            loadedSessionId = result.SessionId;
+            sessionTitle = query.Length > 80 ? query[..80] : query;
+            submittedQuery = result.Query;
+            currentResponse = result.Response;
+            sources = result.RagResponse.Sources.ToList();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error calling RAG service");
-            currentResponse = GetErrorMessage(ex);
+            Logger.LogError(ex, "Error al guardar la consulta en el historial");
+            errorMessage = ex.Message;
+            currentMessage = query;
         }
         finally
         {
             isLoading = false;
-            responseVersion++;
-            StateHasChanged();
         }
     }
 
-    private async Task HandleKeyDown(KeyboardEventArgs args)
+    private async Task HandleKeyUp(KeyboardEventArgs args)
     {
         if ((args.Key == "Enter" || args.Code == "Enter") && !args.ShiftKey)
         {
@@ -162,22 +218,8 @@
     {
         currentResponse = null;
         submittedQuery = null;
+        sources = new();
         currentMessage = string.Empty;
-        responseVersion++;
-    }
-
-    private static string GetErrorMessage(Exception ex)
-    {
-        if (ex.Message.Contains("404", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("Not Found", StringComparison.OrdinalIgnoreCase))
-        {
-            return "⏳ El servicio de IA está iniciando. Por favor espera unos minutos y vuelve a intentar.";
-        }
-
-        if (ex.Message.Contains("Connection refused", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("No connection", StringComparison.OrdinalIgnoreCase))
-        {
-            return "🔌 No se puede conectar al servicio de IA. Verifica que Ollama esté corriendo.";
-        }
-
-        return $"❌ Error al procesar la consulta: {ex.Message}";
+        errorMessage = null;
     }
 }

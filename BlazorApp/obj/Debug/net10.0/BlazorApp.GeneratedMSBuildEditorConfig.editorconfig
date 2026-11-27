@@ -91,6 +91,10 @@ build_metadata.AdditionalFiles.CssScope = b-xpfn4ah9v9
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDaGF0LnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-jrexxvrtgk
 
+[C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/Pages/History.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIaXN0b3J5LnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-9y5zjnjhrh
+
 [C:/Users/dquirogr/Documents/traineedocker/rag-blazor-mongo/BlazorApp/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = b-7gt2111kuu

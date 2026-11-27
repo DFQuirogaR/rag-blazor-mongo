@@ -1,0 +1,246 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Crear modelos y configuración": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722893872
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722899981
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723023543
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794197648
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198421
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794201680
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794401832
+      }
+    ],
+    "2. Adaptar persistencia": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722894461
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723027965
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723267463
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794197760
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198509
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794407708
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794715949
+      }
+    ],
+    "3. Crear contrato RAG": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722894951
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723271548
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723538462
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794197861
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198594
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794719351
+      }
+    ],
+    "4. Implementar `HistoryService`": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722895682
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723542820
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723745898
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794197944
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198677
+      }
+    ],
+    "5. Integrar `/chat`": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722895932
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723749525
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723842042
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198012
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198745
+      }
+    ],
+    "6. Añadir administración": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722896264
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795723846310
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795724963314
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198093
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198825
+      }
+    ],
+    "7. Pruebas": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722896500
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795724967872
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795725240274
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198174
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198896
+      }
+    ],
+    "8. Checkpoint F4": [
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795722896711
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795725244025
+      },
+      {
+        "executionId": "025f5c97-00df-4d92-8b9b-0eb41533d3c2",
+        "chatSessionId": "sess_bd6b3a10-ceb0-4f60-afb8-cfd5a15c420f",
+        "timestamp": 1795725790229
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198252
+      },
+      {
+        "executionId": "10e85efb-9e9f-4c30-9fb6-4ba2b42772c7",
+        "chatSessionId": "sess_70d11b55-b178-40b7-97bc-04aed19803f8",
+        "timestamp": 1795794198988
+      }
+    ]
+  }
+}

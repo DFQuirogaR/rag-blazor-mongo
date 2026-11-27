@@ -1,27 +1,23 @@
 using BlazorApp.Models;
 using MongoDB.Driver;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
+using System.Diagnostics;
 using System.Text;
 
 namespace BlazorApp.Services;
 
-/// <summary>
-/// RAG Service with vector search and context-aware responses
-/// </summary>
+/// <summary>RAG service with a typed request/response contract.</summary>
 public class RagService
 {
     private readonly IMongoDatabase _database;
     private readonly ITextEmbeddingGenerationService _embeddingService;
     private readonly IChatCompletionService _chatService;
     private readonly ILogger<RagService> _logger;
+    private readonly string? _modelName;
 
-    private IMongoCollection<ChunkModel> ChunksCollection =>
-        _database.GetCollection<ChunkModel>("chunks");
-
-    private IMongoCollection<DocumentModel> DocumentsCollection =>
-        _database.GetCollection<DocumentModel>("documents");
+    private IMongoCollection<ChunkModel> ChunksCollection => _database.GetCollection<ChunkModel>("chunks");
+    private IMongoCollection<DocumentModel> DocumentsCollection => _database.GetCollection<DocumentModel>("documents");
 
     public RagService(
         IMongoDatabase database,
@@ -35,207 +31,184 @@ public class RagService
         _logger = logger;
     }
 
-    public async Task<string> QueryAsync(string userQuery, int maxResults = 5)
+    /// <summary>Executes retrieval and generation without embedding sources in Markdown.</summary>
+    public async Task<RagResponse> QueryAsync(RagQueryRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        var query = request.Query.Trim();
+        if (query.Length is < 1 or > 2000)
+        {
+            return new RagResponse { Status = RagResultStatus.Failed, FailureCode = "invalid-query" };
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var retrievedAt = DateTime.UtcNow;
         try
         {
-            _logger.LogInformation("Processing RAG query: {Query}", userQuery);
-
-            // 1. Generate embedding for user query
-            var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(userQuery);
-            var queryVector = queryEmbedding.ToArray();
-
-            // 2. Search for relevant chunks
-            var relevantChunks = await SearchSimilarChunksAsync(queryVector, maxResults);
-
-            if (relevantChunks.Count == 0)
+            cancellationToken.ThrowIfCancellationRequested();
+            var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(query);
+            cancellationToken.ThrowIfCancellationRequested();
+            var candidates = await SearchSimilarChunksAsync(queryEmbedding.ToArray(), request.MaxResults, cancellationToken);
+            var sources = await BuildSourcesAsync(candidates, retrievedAt, cancellationToken);
+            var metadata = new RagModelMetadata
             {
-                _logger.LogWarning("No relevant chunks found for query: {Query}", userQuery);
-                return "Lo siento, no encontré información relevante en los documentos procesados para responder a tu pregunta.";
-            }
+                ModelName = _modelName,
+                ContextChunksUsed = candidates.Count,
+                RetrievedAtUtc = retrievedAt,
+                ProcessingTimeMs = stopwatch.ElapsedMilliseconds
+            };
 
-            // 3. Build context from chunks
-            var context = await BuildContextAsync(relevantChunks);
-
-            // 4. Generate response using LLM
-            var response = await GenerateResponseAsync(userQuery, context);
-
-            // 5. Format response with sources
-            var formattedResponse = await FormatResponseWithSources(response, relevantChunks);
-
-            _logger.LogInformation("Successfully generated RAG response");
-            return formattedResponse;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing RAG query: {Query}", userQuery);
-            return $"Error al procesar la consulta: {ex.Message}";
-        }
-    }
-
-    private async Task<List<ChunkModel>> SearchSimilarChunksAsync(float[] queryVector, int limit)
-    {
-        try
-        {
-            // Get all chunks (for now, we'll calculate similarity in memory)
-            // In production, use MongoDB Atlas Vector Search or similar
-            var allChunks = await ChunksCollection.Find(_ => true).ToListAsync();
-
-            if (allChunks.Count == 0)
+            if (candidates.Count == 0)
             {
-                _logger.LogWarning("No chunks found in database");
-                return new List<ChunkModel>();
-            }
-
-            // Calculate cosine similarity for each chunk
-            var chunksWithScores = allChunks
-                .Where(chunk => chunk.Embedding != null && chunk.Embedding.Length > 0)
-                .Select(chunk => new
+                return new RagResponse
                 {
-                    Chunk = chunk,
-                    Score = CalculateCosineSimilarity(queryVector, chunk.Embedding!)
-                })
-                .OrderByDescending(x => x.Score)
-                .Take(limit)
-                .ToList();
+                    Status = RagResultStatus.NoResults,
+                    AnswerText = "Lo siento, no encontré información relevante en los documentos procesados para responder a tu pregunta.",
+                    Sources = sources,
+                    ModelMetadata = metadata
+                };
+            }
 
-            _logger.LogInformation("Found {Count} similar chunks", chunksWithScores.Count);
-
-            return chunksWithScores.Select(x => x.Chunk).ToList();
+            var context = await BuildContextAsync(candidates, cancellationToken);
+            var answer = await GenerateResponseAsync(query, context, cancellationToken);
+            return new RagResponse
+            {
+                Status = RagResultStatus.Succeeded,
+                AnswerText = answer,
+                Sources = sources,
+                ModelMetadata = new RagModelMetadata
+                {
+                    ModelName = metadata.ModelName,
+                    ContextChunksUsed = metadata.ContextChunksUsed,
+                    RetrievedAtUtc = metadata.RetrievedAtUtc,
+                    ProcessingTimeMs = stopwatch.ElapsedMilliseconds
+                }
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new RagResponse { Status = RagResultStatus.Cancelled, FailureCode = "cancelled" };
+        }
+        catch (TimeoutException)
+        {
+            return new RagResponse { Status = RagResultStatus.TimedOut, FailureCode = "timeout" };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching similar chunks");
-            return new List<ChunkModel>();
+            _logger.LogError(ex, "Error processing RAG query with correlation {CorrelationId}", request.CorrelationId);
+            return new RagResponse { Status = RagResultStatus.Failed, FailureCode = "rag-failure" };
         }
     }
 
-    private float CalculateCosineSimilarity(float[] vectorA, float[] vectorB)
+    /// <summary>
+    /// Temporary string adapter for consumers that have not migrated to RagQueryRequest/RagResponse.
+    /// New code should use the typed overload.
+    /// </summary>
+    public async Task<string> QueryAsync(string userQuery, int maxResults = 5, CancellationToken cancellationToken = default)
     {
-        if (vectorA.Length != vectorB.Length)
-            return 0f;
-
-        float dotProduct = 0f;
-        float magnitudeA = 0f;
-        float magnitudeB = 0f;
-
-        for (int i = 0; i < vectorA.Length; i++)
+        var response = await QueryAsync(new RagQueryRequest
         {
-            dotProduct += vectorA[i] * vectorB[i];
+            Query = userQuery,
+            MaxResults = maxResults
+        }, cancellationToken);
+
+        if (response.Status is RagResultStatus.Failed or RagResultStatus.Cancelled or RagResultStatus.TimedOut)
+        {
+            return response.FailureCode switch
+            {
+                "cancelled" => "La consulta fue cancelada.",
+                "timeout" => "La consulta agotó el tiempo de espera.",
+                "invalid-query" => "La consulta no es válida.",
+                _ => "No se pudo completar la consulta."
+            };
+        }
+
+        return response.AnswerText;
+    }
+
+    private async Task<List<RetrievedChunk>> SearchSimilarChunksAsync(float[] queryVector, int limit, CancellationToken cancellationToken)
+    {
+        var allChunks = await ChunksCollection.Find(_ => true).ToListAsync(cancellationToken);
+        return allChunks
+            .Where(chunk => chunk.Embedding is { Length: > 0 })
+            .Select(chunk => new RetrievedChunk(chunk, CalculateCosineSimilarity(queryVector, chunk.Embedding!)))
+            .OrderByDescending(result => result.Relevance)
+            .Take(Math.Clamp(limit, 1, 50))
+            .ToList();
+    }
+
+    private async Task<List<SourceReference>> BuildSourcesAsync(
+        IReadOnlyList<RetrievedChunk> retrieved,
+        DateTime retrievedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        var documentIds = retrieved.Select(item => item.Chunk.DocumentId).Distinct().ToList();
+        var documents = await DocumentsCollection.Find(documentIds.Count == 0
+            ? Builders<DocumentModel>.Filter.Empty
+            : Builders<DocumentModel>.Filter.In(document => document.Id, documentIds)).ToListAsync(cancellationToken);
+        var names = documents.ToDictionary(document => document.Id!, document =>
+            string.IsNullOrWhiteSpace(document.DocumentMetadata?.Title)
+                ? document.FileName
+                : document.DocumentMetadata.Title!.Trim());
+
+        return retrieved.Select(item => new SourceReference
+        {
+            DocumentId = item.Chunk.DocumentId,
+            StoredDocumentName = names.TryGetValue(item.Chunk.DocumentId, out var name) ? name : item.Chunk.DocumentId,
+            Page = item.Chunk.PageNumber,
+            Section = item.Chunk.ChunkMetadata?.SectionTitle,
+            Location = $"chunk:{item.Chunk.ChunkIndex};chars:{item.Chunk.StartChar}-{item.Chunk.EndChar}",
+            Quote = item.Chunk.ChunkText,
+            RetrievedAtUtc = retrievedAtUtc,
+            Relevance = item.Relevance
+        }).ToList();
+    }
+
+    private async Task<string> BuildContextAsync(IReadOnlyList<RetrievedChunk> chunks, CancellationToken cancellationToken)
+    {
+        var documents = await DocumentsCollection.Find(_ => true).ToListAsync(cancellationToken);
+        var names = documents.ToDictionary(document => document.Id!, document => document.FileName);
+        var context = new StringBuilder();
+        foreach (var result in chunks)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (names.TryGetValue(result.Chunk.DocumentId, out var name))
+            {
+                context.AppendLine($"[Documento: {name}]");
+            }
+            context.AppendLine(result.Chunk.ChunkText);
+            context.AppendLine("---");
+        }
+        return context.ToString();
+    }
+
+    private async Task<string> GenerateResponseAsync(string query, string context, CancellationToken cancellationToken)
+    {
+        var history = new ChatHistory();
+        history.AddSystemMessage("Responde únicamente basándote en el contexto proporcionado. Si falta información, indícalo claramente.\n\nCONTEXTO:\n" + context);
+        history.AddUserMessage(query);
+        var response = await _chatService.GetChatMessageContentAsync(history, cancellationToken: cancellationToken);
+        return response.Content ?? "No se pudo generar una respuesta.";
+    }
+
+    private static float CalculateCosineSimilarity(float[] vectorA, float[] vectorB)
+    {
+        if (vectorA.Length != vectorB.Length) return 0f;
+        var dot = 0f;
+        var magnitudeA = 0f;
+        var magnitudeB = 0f;
+        for (var i = 0; i < vectorA.Length; i++)
+        {
+            dot += vectorA[i] * vectorB[i];
             magnitudeA += vectorA[i] * vectorA[i];
             magnitudeB += vectorB[i] * vectorB[i];
         }
-
-        magnitudeA = (float)Math.Sqrt(magnitudeA);
-        magnitudeB = (float)Math.Sqrt(magnitudeB);
-
-        if (magnitudeA == 0f || magnitudeB == 0f)
-            return 0f;
-
-        return dotProduct / (magnitudeA * magnitudeB);
+        if (magnitudeA == 0 || magnitudeB == 0) return 0f;
+        return dot / (float)(Math.Sqrt(magnitudeA) * Math.Sqrt(magnitudeB));
     }
 
-    private async Task<string> BuildContextAsync(List<ChunkModel> chunks)
-    {
-        var contextBuilder = new StringBuilder();
-        
-        // Get document info for each chunk
-        var documentIds = chunks.Select(c => c.DocumentId).Distinct().ToList();
-        var documents = await DocumentsCollection
-            .Find(d => documentIds.Contains(d.Id!))
-            .ToListAsync();
-        
-        var documentDict = documents.ToDictionary(d => d.Id!, d => d);
+    public async Task<int> GetDocumentCountAsync() => (int)await DocumentsCollection.CountDocumentsAsync(_ => true);
+    public async Task<int> GetChunkCountAsync() => (int)await ChunksCollection.CountDocumentsAsync(_ => true);
 
-        foreach (var chunk in chunks)
-        {
-            if (documentDict.TryGetValue(chunk.DocumentId, out var document))
-            {
-                contextBuilder.AppendLine($"[Documento: {document.FileName}]");
-            }
-            contextBuilder.AppendLine(chunk.ChunkText);
-            contextBuilder.AppendLine();
-            contextBuilder.AppendLine("---");
-            contextBuilder.AppendLine();
-        }
-
-        return contextBuilder.ToString();
-    }
-
-    private async Task<string> GenerateResponseAsync(string userQuery, string context)
-    {
-        var systemPrompt = @"Eres un asistente experto que ayuda a responder preguntas basándote en documentos de referencia.
-
-INSTRUCCIONES:
-1. Responde ÚNICAMENTE basándote en el contexto proporcionado
-2. Si la información no está en el contexto, di claramente que no tienes esa información
-3. Estructura tu respuesta con pasos numerados cuando sea apropiado
-4. Sé claro, conciso y preciso
-5. Si mencionas procedimientos, lista cada paso claramente
-
-CONTEXTO:
-" + context;
-
-        var chatHistory = new ChatHistory();
-        chatHistory.AddSystemMessage(systemPrompt);
-        chatHistory.AddUserMessage(userQuery);
-
-        try
-        {
-            var response = await _chatService.GetChatMessageContentAsync(chatHistory);
-            return response.Content ?? "No se pudo generar una respuesta.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error calling LLM service");
-            return "Error al generar la respuesta del modelo de lenguaje.";
-        }
-    }
-
-    private async Task<string> FormatResponseWithSources(string response, List<ChunkModel> chunks)
-    {
-        var formattedResponse = new StringBuilder();
-        formattedResponse.AppendLine(response);
-        formattedResponse.AppendLine();
-        formattedResponse.AppendLine("---");
-        formattedResponse.AppendLine();
-        formattedResponse.AppendLine("**Fuentes consultadas:**");
-
-        var documentIds = chunks.Select(c => c.DocumentId).Distinct().ToList();
-        var documents = await DocumentsCollection
-            .Find(d => documentIds.Contains(d.Id!))
-            .ToListAsync();
-        var documentDict = documents.ToDictionary(d => d.Id!, d => d);
-
-        foreach (var docId in documentIds)
-        {
-            var chunksFromDoc = chunks.Where(c => c.DocumentId == docId).ToList();
-            if (chunksFromDoc.Count == 0)
-            {
-                continue;
-            }
-
-            var documentName = documentDict.TryGetValue(docId, out var document)
-                ? document.DocumentMetadata?.Title?.Trim()
-                : null;
-            documentName = string.IsNullOrWhiteSpace(documentName)
-                ? (document?.FileName?.Trim() ?? string.Empty)
-                : documentName;
-            documentName = string.IsNullOrWhiteSpace(documentName) ? docId : documentName;
-
-            formattedResponse.AppendLine($"- Documento: {documentName} ({chunksFromDoc.Count} fragmentos)");
-        }
-
-        return formattedResponse.ToString();
-    }
-
-    public async Task<int> GetDocumentCountAsync()
-    {
-        return (int)await DocumentsCollection.CountDocumentsAsync(_ => true);
-    }
-
-    public async Task<int> GetChunkCountAsync()
-    {
-        return (int)await ChunksCollection.CountDocumentsAsync(_ => true);
-    }
+    private sealed record RetrievedChunk(ChunkModel Chunk, double Relevance);
 }

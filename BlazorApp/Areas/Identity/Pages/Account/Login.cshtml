@@ -1,59 +1,75 @@
 @page
-@model BlazorApp.Areas.Identity.Pages.Account.LoginModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model BlazorApp.Areas.Identity.Pages.Account.LoginModel
 @{
     Layout = null;
-    var appName = "Nombre de la aplicación";
-    var appSubtitle = "Portal de conocimiento operacional";
+    var brandName = ViewData["BrandName"] as string ?? "Nombre de la aplicación";
+    var brandSubtitle = ViewData["BrandSubtitle"] as string ?? "Portal de conocimiento";
 }
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Iniciar sesión - @appName</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <title>Iniciar sesión - @brandName</title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/login.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <link rel="stylesheet" href="~/css/login.css" asp-append-version="true" />
 </head>
 <body class="login-page">
     <main class="login-shell">
         <section class="login-card" aria-labelledby="login-title">
             <div class="login-brand">
-                <div class="login-logo" aria-label="Logo pendiente">
-                    <i class="bi bi-robot" aria-hidden="true"></i>
+                <div class="login-logo" aria-hidden="true">
+                    <i class="bi bi-robot"></i>
                 </div>
-                <h1 id="login-title">@appName</h1>
-                <p>@appSubtitle</p>
+                <h1 id="login-title">@brandName</h1>
+                <p>@brandSubtitle</p>
             </div>
 
-            <form method="post" asp-route-returnUrl="@Model.ReturnUrl" class="login-form">
-                <div asp-validation-summary="ModelOnly" class="login-error" role="alert"></div>
+            <form method="post" class="login-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ReturnUrl" />
 
-                <div class="login-field">
+                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+
+                <div class="form-field">
                     <label asp-for="Input.Email">Correo electrónico</label>
                     <input asp-for="Input.Email"
                            autocomplete="username"
-                           autofocus
-                           placeholder="nombre@empresa.com" />
-                    <span asp-validation-for="Input.Email" class="field-error"></span>
+                           placeholder="nombre@empresa.com"
+                           autofocus />
+                    <span asp-validation-for="Input.Email" class="validation-message"></span>
                 </div>
 
-                <div class="login-field">
+                <div class="form-field">
                     <label asp-for="Input.Password">Contraseña</label>
                     <input asp-for="Input.Password"
+                           type="password"
                            autocomplete="current-password"
-                           placeholder="••••••••" />
-                    <span asp-validation-for="Input.Password" class="field-error"></span>
+                           placeholder="Ingresa tu contraseña" />
+                    <span asp-validation-for="Input.Password" class="validation-message"></span>
                 </div>
 
-                <button type="submit" class="login-submit">Iniciar sesión</button>
+                <div class="remember-row">
+                    <label class="remember-label">
+                        <input asp-for="Input.RememberMe" />
+                        <span>Recordarme</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="login-submit">
+                    <span>Iniciar sesión</span>
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </button>
             </form>
 
             <div class="login-footer">
-                <span>Acceso local de desarrollo</span>
+                <span>Entorno local de desarrollo</span>
             </div>
         </section>
     </main>
+
+    <partial name="_ValidationScriptsPartial" />
 </body>
 </html>

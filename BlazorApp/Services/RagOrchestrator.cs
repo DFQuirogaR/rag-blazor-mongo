@@ -177,7 +177,7 @@ public class RagOrchestrator
             {
                 // Create new session
                 _logger.LogInformation("Creating new session for user: {UserId}", userId);
-                session = await _chatSessionService.CreateSessionAsync(userId: userId);
+                session = await _chatSessionService.CreateSessionAsync();
             }
             else
             {

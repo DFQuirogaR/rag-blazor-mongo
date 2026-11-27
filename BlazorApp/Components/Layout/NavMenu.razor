@@ -21,6 +21,16 @@
         </div>
 
         <div class="nav-item">
+            <NavLink class="nav-link" href="history" title="Historial">
+                <i class="bi bi-clock-history"></i>
+                @if (!Collapsed)
+                {
+                    <span>Historial</span>
+                }
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
             <NavLink class="nav-link" href="documents" title="Documentos">
                 <i class="bi bi-folder-fill"></i>
                 @if (!Collapsed)

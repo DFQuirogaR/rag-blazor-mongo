@@ -1,3 +1,3 @@
 namespace BlazorApp.Models;
 
-// Modelos básicos para el chat
+// Los contratos tipados de RAG viven en RagContracts.cs.

@@ -5,6 +5,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+# Optional build metadata is embedded at publish time, not supplied as runtime environment state.
+ARG BUILD_VERSION=0.1.0
+ARG BUILD_VERSION_SUFFIX=local
+ARG BUILD_COMMIT=unknown
+ARG CI_BUILD_NUMBER=local
+ARG BUILD_PHASE=development
+
 # Copiar project file y restaurar dependencias (optimización: cache si no cambia)
 COPY ["BlazorApp.csproj", "./"]
 RUN dotnet restore "BlazorApp.csproj"
@@ -12,8 +19,13 @@ RUN dotnet restore "BlazorApp.csproj"
 # Copiar el resto del código fuente
 COPY . .
 
-# Publicar en modo Release
-RUN dotnet publish "BlazorApp.csproj" -c Release -o /app/publish --no-restore
+# Publicar en modo Release, incorporando metadata opcional en el ensamblado
+RUN dotnet publish "BlazorApp.csproj" -c Release -o /app/publish --no-restore \
+    -p:VersionPrefix="${BUILD_VERSION}" \
+    -p:VersionSuffix="${BUILD_VERSION_SUFFIX}" \
+    -p:BuildCommit="${BUILD_COMMIT}" \
+    -p:BuildNumber="${CI_BUILD_NUMBER}" \
+    -p:BuildPhase="${BUILD_PHASE}"
 
 # Stage 2: Runtime final
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

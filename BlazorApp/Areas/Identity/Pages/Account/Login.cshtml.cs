@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations;
-using BlazorApp.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using BlazorApp.Data;
 
 namespace BlazorApp.Areas.Identity.Pages.Account;
 
@@ -12,50 +12,57 @@ public class LoginModel : PageModel
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ILogger<LoginModel> _logger;
+    private readonly IConfiguration _configuration;
 
     public LoginModel(
         SignInManager<ApplicationUser> signInManager,
-        ILogger<LoginModel> logger)
+        ILogger<LoginModel> logger,
+        IConfiguration configuration)
     {
         _signInManager = signInManager;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
-    public string ReturnUrl { get; private set; } = "/";
+    [BindProperty(SupportsGet = true)]
+    public string? ReturnUrl { get; set; }
 
-    public void OnGet(string? returnUrl = null)
+    public void OnGet()
     {
-        ReturnUrl = NormalizeReturnUrl(returnUrl);
+        ViewData["BrandName"] = _configuration["Brand:Name"] ?? "Nombre de la aplicación";
+        ViewData["BrandSubtitle"] = _configuration["Brand:Subtitle"] ?? "Portal de conocimiento";
     }
 
-    public async Task<IActionResult> OnPostAsync(
-        string? returnUrl = null,
-        CancellationToken cancellationToken = default)
+    public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        ReturnUrl = NormalizeReturnUrl(returnUrl);
+        ReturnUrl ??= returnUrl;
+        ViewData["BrandName"] = _configuration["Brand:Name"] ?? "Nombre de la aplicación";
+        ViewData["BrandSubtitle"] = _configuration["Brand:Subtitle"] ?? "Portal de conocimiento";
+
         if (!ModelState.IsValid)
         {
             return Page();
         }
 
+        var email = Input.Email.Trim().ToLowerInvariant();
         var result = await _signInManager.PasswordSignInAsync(
-            Input.Email.Trim(),
+            email,
             Input.Password,
             Input.RememberMe,
             lockoutOnFailure: true);
 
         if (result.Succeeded)
         {
-            _logger.LogInformation("Usuario local inició sesión: {Email}", Input.Email.Trim());
-            return LocalRedirect(ReturnUrl);
+            _logger.LogInformation("Usuario local autenticado: {Email}", email);
+            return LocalRedirect(GetSafeReturnUrl());
         }
 
         if (result.IsLockedOut)
         {
-            ModelState.AddModelError(string.Empty, "La cuenta está temporalmente bloqueada.");
+            ModelState.AddModelError(string.Empty, "La cuenta está bloqueada temporalmente.");
         }
         else
         {
@@ -65,26 +72,23 @@ public class LoginModel : PageModel
         return Page();
     }
 
-    private string NormalizeReturnUrl(string? returnUrl)
+    private string GetSafeReturnUrl()
     {
-        return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
-            ? returnUrl
+        return !string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl)
+            ? ReturnUrl
             : "/";
     }
 
     public sealed class InputModel
     {
-        [BindProperty]
-        [Required(ErrorMessage = "El correo es obligatorio.")]
-        [EmailAddress(ErrorMessage = "Introduce un correo válido.")]
+        [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
+        [EmailAddress(ErrorMessage = "Introduce un correo electrónico válido.")]
         public string Email { get; set; } = string.Empty;
 
-        [BindProperty]
         [Required(ErrorMessage = "La contraseña es obligatoria.")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
 
-        [BindProperty]
         [Display(Name = "Recordarme")]
         public bool RememberMe { get; set; }
     }

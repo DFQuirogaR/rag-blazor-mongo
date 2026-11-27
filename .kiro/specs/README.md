@@ -4,6 +4,22 @@
 
 Organizar la evolución del RAG para desarrollo local con Docker, cuentas de prueba, entregas pequeñas y pruebas reproducibles entre fases. La fase 2 existente es la base técnica, aunque conserva pendientes documentados en `rag-phase-2-functional/tasks.md`.
 
+## Estado actual del roadmap
+
+**Línea actual: Fase 5, localización y respuestas multilingües.**
+
+El escaneo del repositorio deja este estado:
+
+- **Fase 2:** cerrada como línea base funcional. Sus tareas de salida obligatoria están marcadas como completadas; las optimizaciones RAG permanecen diferidas.
+- **Fase 3:** checkpoint F3 cerrado. Queda una mejora no bloqueante: sustituir `EnsureCreatedAsync` por migraciones EF reproducibles para Identity.
+- **Fase 4:** funcional y en cierre de checkpoint. El contrato RAG tipado, `HistoryService`, persistencia por usuario, integración de `/chat`, búsqueda, archivado/restauración, exportación, eliminación y pruebas están implementados. La suite C# pasó 33/33 y la prueba de aislamiento MongoDB pasó 1/1. Docker Compose levantó Blazor, MongoDB y Ollama saludables; queda como pendiente opcional automatizar el smoke test completo de flujo antes de cerrar la tarea 9.
+- **Fase 5:** siguiente fase, bloqueada hasta registrar el cierre formal de Fase 4.
+- **Fase 6:** todavía no iniciada; depende de las fases 3 a 5.
+- **Fix `sidebar-collapse-fix`:** trabajo transversal pendiente de validación real del componente. Solo la limpieza de CSS y la verificación de restricciones de `MainLayout` aparecen completadas; no confundirlo con la línea principal de fases RAG.
+- **Archivo `archive/rag-phase-3-history-localization-original`:** histórico, no ejecutable y fuera del estado actual.
+
+Por tanto, el siguiente paso es registrar el cierre formal de Fase 4. Después puede iniciarse **Fase 5, tarea 1: crear los recursos completos para `es`, `en` y `pt`**.
+
 ## Secuencia aprobada
 
 ```text

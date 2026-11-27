@@ -15,15 +15,34 @@ public class ChatSession
     /// Uses Guid instead of ObjectId for distributed uniqueness.
     /// </summary>
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    /// <summary>UUID persisted for the canonical MongoDB session schema.</summary>
+    [BsonElement("sessionId")]
+    public string SessionId
+    {
+        get => Id;
+        set => Id = value;
+    }
 
     /// <summary>
     /// Title of the conversation session.
     /// </summary>
     [Required]
     [StringLength(200, ErrorMessage = "Title cannot exceed 200 characters.")]
+    [BsonElement("title")]
     public string Title { get; set; } = "Nueva conversación";
+
+    /// <summary>Stable authenticated owner identifier. This is the authorization key.</summary>
+    [Required]
+    public string OwnerUserId { get; set; } = string.Empty;
+
+    /// <summary>Informative email snapshot; it is never used for authorization.</summary>
+    public string? OwnerEmailSnapshot { get; set; }
+
+    /// <summary>Session lifecycle status: active, archived, or deleted.</summary>
+    [BsonElement("status")]
+    public string Status { get; set; } = SessionStatuses.Active;
 
     /// <summary>
     /// List of messages in this session.
@@ -34,18 +53,37 @@ public class ChatSession
     /// Timestamp when the session was created.
     /// </summary>
     [Required]
+    [BsonElement("createdDate")]
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// Timestamp of the last activity in this session.
     /// </summary>
     [Required]
+    [BsonElement("lastActivityDate")]
     public DateTime LastActive { get; set; } = DateTime.UtcNow;
 
+    /// <summary>UTC naming aliases used by the phase-4 contracts.</summary>
+    [BsonIgnore]
+    public DateTime CreatedAtUtc
+    {
+        get => CreatedDate;
+        set => CreatedDate = value;
+    }
+
+    [BsonIgnore]
+    public DateTime LastActiveUtc
+    {
+        get => LastActive;
+        set => LastActive = value;
+    }
+
+    public const string DefaultTitle = "Nueva conversación";
+
     /// <summary>
-    /// Optional user ID who owns this session.
+    /// Legacy user ID field kept for backward-compatible documents. Authorization uses OwnerUserId.
     /// </summary>
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonElement("userId")]
     public string? UserId { get; set; }
 
     /// <summary>
@@ -65,7 +103,9 @@ public class ChatSession
         return new ChatSession
         {
             Title = title,
+            OwnerUserId = userId ?? string.Empty,
             UserId = userId,
+            Status = SessionStatuses.Active,
             CreatedDate = DateTime.UtcNow,
             LastActive = DateTime.UtcNow,
             Metadata = new SessionMetadata
@@ -93,6 +133,10 @@ public class ChatSession
             throw new ArgumentNullException(nameof(message));
 
         message.SessionId = Id;
+        if (string.IsNullOrWhiteSpace(message.OwnerUserId))
+        {
+            message.OwnerUserId = OwnerUserId;
+        }
         Messages.Add(message);
         UpdateLastActive();
     }
@@ -169,4 +213,12 @@ public class SessionMetadata
     /// Optional custom properties.
     /// </summary>
     public Dictionary<string, string>? CustomProperties { get; set; }
+}
+
+/// <summary>Persisted lifecycle values for a chat session.</summary>
+public static class SessionStatuses
+{
+    public const string Active = "active";
+    public const string Archived = "archived";
+    public const string Deleted = "deleted";
 }

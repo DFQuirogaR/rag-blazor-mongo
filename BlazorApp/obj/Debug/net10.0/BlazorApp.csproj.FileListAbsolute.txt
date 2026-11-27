@@ -146,8 +146,6 @@ C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\n
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\ref\BlazorApp.dll
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\scopedcss\Components\Pages\Home.razor.rz.scp.css
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\46eark03c8-{0}-prq25y2m51-prq25y2m51.gz
-C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\8v4adbxxmx-{0}-zuerd18xa0-zuerd18xa0.gz
-C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\rrzzv9ip5o-{0}-zuerd18xa0-zuerd18xa0.gz
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\bin\Debug\net10.0\Microsoft.AspNetCore.Identity.EntityFrameworkCore.dll
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\bin\Debug\net10.0\Microsoft.AspNetCore.Identity.UI.dll
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\bin\Debug\net10.0\Microsoft.Data.Sqlite.dll
@@ -247,4 +245,7 @@ C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\n
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\hh92lrx13d-{0}-bmvbcfe90h-bmvbcfe90h.gz
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\BlazorApp.RazorAssemblyInfo.cache
 C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\BlazorApp.RazorAssemblyInfo.cs
-C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\n75odsdw3e-{0}-grzpzs080y-grzpzs080y.gz
+C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\n75odsdw3e-{0}-5k61mrxcbs-5k61mrxcbs.gz
+C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\scopedcss\Components\Pages\History.razor.rz.scp.css
+C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\8v4adbxxmx-{0}-olwvvfk7u7-olwvvfk7u7.gz
+C:\Users\dquirogr\Documents\traineedocker\rag-blazor-mongo\BlazorApp\obj\Debug\net10.0\compressed\rrzzv9ip5o-{0}-olwvvfk7u7-olwvvfk7u7.gz
